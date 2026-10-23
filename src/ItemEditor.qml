@@ -73,8 +73,9 @@ Rectangle {
 
         TextField {
             id: titleField
+            objectName: "titleField"
             Layout.fillWidth: true
-            placeholderText: qsTr("What needs fixing?")
+            placeholderText: win.label(titleField, qsTr("What needs fixing?"))
             font.pixelSize: 16
             onEditingFinished: editor.commit()
             // Enter is done typing, so the single-key shortcuts work again.
@@ -110,7 +111,7 @@ Rectangle {
             rowSpacing: 4
 
             Label { text: qsTr("Trade"); color: win.muted }
-            ComboBox {
+            Dropdown {
                 id: tradeBox
                 Layout.fillWidth: true
                 editable: true
@@ -120,7 +121,7 @@ Rectangle {
                 onActiveFocusChanged: if (!activeFocus) editor.commit()
             }
             Label { text: qsTr("Assignee"); color: win.muted }
-            ComboBox {
+            Dropdown {
                 id: assigneeBox
                 Layout.fillWidth: true
                 editable: true
@@ -133,6 +134,7 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true
                 Button {
+                    objectName: "dueButton"
                     Layout.fillWidth: true
                     flat: true
                     text: win.formatDate(editor.item.due) || qsTr("No due date")

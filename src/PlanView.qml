@@ -84,6 +84,7 @@ Item {
 
         Item {
             id: canvas
+            objectName: "planCanvas"
             width: flick.contentWidth
             height: flick.contentHeight
 
@@ -109,6 +110,7 @@ Item {
                 model: backend.pins
                 delegate: Pin {
                     id: pin
+                    objectName: "pin" + model.number
                     required property var model
                     readonly property int itemId: model.itemId
                     // The model's x and y are fractions of the plan.

@@ -111,5 +111,17 @@
   "%1 is not a Corbel project.": "%1 ist kein Corbel-Projekt.",
   "%1 was made by a newer Corbel.": "%1 wurde mit einem neueren Corbel erstellt.",
   "The plan could not be stored.": "Der Plan konnte nicht gespeichert werden.",
-  "View": "Anzeigen"
+  "View": "Anzeigen",
+  "Delete floor": "Geschoss löschen",
+  "Export %n items": {
+    "one": "%n Punkt exportieren",
+    "other": "%n Punkte exportieren"
+  },
+  "Delete %1?": "%1 löschen?",
+  "Its %n items and their photos are deleted with it. Ctrl+Z brings them back.": {
+    "one": "Sein %n Punkt und dessen Fotos werden mitgelöscht. Strg+Z holt sie zurück.",
+    "other": "Seine %n Punkte und deren Fotos werden mitgelöscht. Strg+Z holt sie zurück."
+  },
+  "Only %1": "Nur %1",
+  "No items match.": "Keine passenden Punkte."
 }

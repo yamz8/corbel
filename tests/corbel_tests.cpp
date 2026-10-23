@@ -8,30 +8,12 @@
 #include <QtTest>
 
 #include "backend.h"
-#include "filepicker.h"
+#include "fakepicker.h"
 #include "planimport.h"
 #include "report.h"
 #include "store.h"
 #include "theme.h"
 #include "translator.h"
-
-// Answers every dialog with the files it was given, as the portal would.
-class FakePicker : public FilePicker {
-public:
-    QStringList answers;
-    QString lastPurpose;
-    void open(const QString &purpose, const QString &, const QList<FileFilter> &, bool, const QString &) override {
-        lastPurpose = purpose;
-        QList<QUrl> urls;
-        for (const auto &answer : answers)
-            urls << QUrl::fromLocalFile(answer);
-        emit selected(purpose, urls);
-    }
-    void save(const QString &purpose, const QString &, const QString &, const FileFilter &) override {
-        lastPurpose = purpose;
-        emit selected(purpose, {QUrl::fromLocalFile(answers.value(0))});
-    }
-};
 
 class CorbelTests : public QObject {
     Q_OBJECT
@@ -68,10 +50,6 @@ private:
     }
 
 private slots:
-    // Settings (the last project, the last folder) go to a test location,
-    // not the user's own.
-    void initTestCase() { QStandardPaths::setTestModeEnabled(true); }
-
     void storeCreatesAndReopens()
     {
         QTemporaryDir dir;
@@ -467,5 +445,10 @@ private:
     }
 };
 
-QTEST_MAIN(CorbelTests)
+int runCorbelTests(int argc, char **argv)
+{
+    CorbelTests tests;
+    return QTest::qExec(&tests, argc, argv);
+}
+
 #include "corbel_tests.moc"

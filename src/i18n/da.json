@@ -111,5 +111,17 @@
   "%1 is not a Corbel project.": "%1 er ikke et Corbel-projekt.",
   "%1 was made by a newer Corbel.": "%1 er lavet af en nyere Corbel.",
   "The plan could not be stored.": "Planen kunne ikke gemmes.",
-  "View": "Vis"
+  "View": "Vis",
+  "Delete floor": "Slet etage",
+  "Export %n items": {
+    "one": "Eksportér %n punkt",
+    "other": "Eksportér %n punkter"
+  },
+  "Delete %1?": "Slet %1?",
+  "Its %n items and their photos are deleted with it. Ctrl+Z brings them back.": {
+    "one": "Etagens %n punkt og dets fotos slettes med den. Ctrl+Z bringer dem tilbage.",
+    "other": "Etagens %n punkter og deres fotos slettes med den. Ctrl+Z bringer dem tilbage."
+  },
+  "Only %1": "Kun %1",
+  "No items match.": "Ingen punkter matcher."
 }

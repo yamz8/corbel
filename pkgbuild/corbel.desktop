@@ -6,6 +6,7 @@ Comment[da]=Mangellister på plantegninger
 Comment[de]=Mängellisten auf Grundrissen
 Comment[es]=Listas de pendientes sobre planos
 Comment[fr]=Listes de réserves sur plans
+Comment[he]=רשימות ליקויים על תוכניות קומה
 Exec=corbel open %f
 Icon=corbel
 Terminal=false

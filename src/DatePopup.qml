@@ -74,6 +74,7 @@ Popup {
         RowLayout {
             Layout.fillWidth: true
             Button {
+                objectName: "dueToday"
                 flat: true
                 text: qsTr("Today")
                 onClicked: { popup.picked(new Date()); popup.close() }

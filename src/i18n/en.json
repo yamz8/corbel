@@ -1,4 +1,18 @@
 {
-  "%n items": { "one": "%n item", "other": "%n items" },
-  "%n photos": { "one": "%n photo", "other": "%n photos" }
+  "%n items": {
+    "one": "%n item",
+    "other": "%n items"
+  },
+  "%n photos": {
+    "one": "%n photo",
+    "other": "%n photos"
+  },
+  "Export %n items": {
+    "one": "Export %n item",
+    "other": "Export %n items"
+  },
+  "Its %n items and their photos are deleted with it. Ctrl+Z brings them back.": {
+    "one": "Its %n item and its photos are deleted with it. Ctrl+Z brings them back.",
+    "other": "Its %n items and their photos are deleted with it. Ctrl+Z brings them back."
+  }
 }

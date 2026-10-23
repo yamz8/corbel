@@ -5,6 +5,7 @@
         <file alias="ItemList.qml">ItemList.qml</file>
         <file alias="ItemEditor.qml">ItemEditor.qml</file>
         <file alias="DatePopup.qml">DatePopup.qml</file>
+        <file alias="Dropdown.qml">Dropdown.qml</file>
         <file alias="HelpOverlay.qml">HelpOverlay.qml</file>
         <file alias="skill.md">skill.md</file>
         <file alias="i18n/en.json">i18n/en.json</file>
@@ -12,5 +13,6 @@
         <file alias="i18n/de.json">i18n/de.json</file>
         <file alias="i18n/es-MX.json">i18n/es-MX.json</file>
         <file alias="i18n/fr.json">i18n/fr.json</file>
+        <file alias="i18n/he.json">i18n/he.json</file>
     </qresource>
 </RCC>

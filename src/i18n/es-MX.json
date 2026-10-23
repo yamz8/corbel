@@ -113,5 +113,19 @@
   "%1 is not a Corbel project.": "%1 no es un proyecto de Corbel.",
   "%1 was made by a newer Corbel.": "%1 se creó con una versión más reciente de Corbel.",
   "The plan could not be stored.": "No se pudo guardar el plano.",
-  "View": "Ver"
+  "View": "Ver",
+  "Delete floor": "Eliminar nivel",
+  "Export %n items": {
+    "one": "Exportar %n elemento",
+    "many": "Exportar %n de elementos",
+    "other": "Exportar %n elementos"
+  },
+  "Delete %1?": "¿Eliminar %1?",
+  "Its %n items and their photos are deleted with it. Ctrl+Z brings them back.": {
+    "one": "Su %n elemento y sus fotos se eliminan con él. Ctrl+Z los recupera.",
+    "many": "Sus %n de elementos y sus fotos se eliminan con él. Ctrl+Z los recupera.",
+    "other": "Sus %n elementos y sus fotos se eliminan con él. Ctrl+Z los recupera."
+  },
+  "Only %1": "Solo %1",
+  "No items match.": "Ningún elemento coincide."
 }

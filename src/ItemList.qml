@@ -21,28 +21,28 @@ Rectangle {
             columnSpacing: 8
             rowSpacing: 0
 
-            ComboBox {
+            Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
                 model: [qsTr("All statuses"), qsTr("Open"), qsTr("In progress"), qsTr("Done")]
                 currentIndex: backend.statusFilter + 1
                 onActivated: (index) => backend.statusFilter = index - 1
             }
-            ComboBox {
+            Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
                 model: [qsTr("All floors")].concat(backend.plans.map(p => p.name))
                 currentIndex: backend.floorFilter ? backend.plans.findIndex(p => p.id === backend.floorFilter) + 1 : 0
                 onActivated: (index) => backend.floorFilter = index ? backend.plans[index - 1].id : 0
             }
-            ComboBox {
+            Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
                 model: [qsTr("All trades")].concat(backend.usedTrades)
                 currentIndex: backend.tradeFilter ? backend.usedTrades.indexOf(backend.tradeFilter) + 1 : 0
                 onActivated: (index) => backend.tradeFilter = index ? backend.usedTrades[index - 1] : ""
             }
-            ComboBox {
+            Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
                 model: [qsTr("All assignees")].concat(backend.assignees)
@@ -83,6 +83,7 @@ Rectangle {
 
             delegate: Rectangle {
                 id: row
+                objectName: "row" + model.number
                 required property var model
                 required property int index
                 readonly property bool isSelected: model.itemId === backend.selectedId

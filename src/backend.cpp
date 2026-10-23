@@ -459,8 +459,8 @@ void Backend::removeItem(int id) {
     record(id, before, true);
     if (m_selectedId == id)
         m_selectedId = 0;
-    forgetImages();
     refresh();
+    forgetImages();
 }
 
 void Backend::removePhoto(int photoId) {
@@ -469,8 +469,8 @@ void Backend::removePhoto(int photoId) {
     if (before.isEmpty() || !m_store.removePhoto(photoId))
         return;
     record(id, before, true);
-    forgetImages();
     refresh();
+    forgetImages();
 }
 
 void Backend::renamePlan(int id, const QString &name) {
@@ -499,8 +499,8 @@ void Backend::removePlan(int id) {
         if (value.toMap().value("id").toInt() == m_selectedId)
             m_selectedId = 0;
     showPlan(m_currentPlan);
-    forgetImages();
     refresh();
+    forgetImages();
 }
 
 void Backend::select(int id) {
@@ -559,13 +559,13 @@ void Backend::apply(const Change &change, bool forward) {
         else
             landed = step.id;
     }
-    forgetImages();
 
     // Land on what changed, so the undo is visible.
     const Item item = m_store.item(landed);
     m_selectedId = item.id;
     showPlan(item.id ? item.planId : landedPlan ? landedPlan : m_currentPlan);
     refresh();
+    forgetImages();
 }
 
 // Shows a floor, or the first one when it is gone, and drops a floor filter

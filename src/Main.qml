@@ -24,6 +24,13 @@ ApplicationWindow {
     // Single-key shortcuts stand aside while a text field has the keyboard.
     readonly property bool typing: activeFocusItem !== null && activeFocusItem.hasOwnProperty("cursorPosition")
     readonly property bool hasPlan: backend.isOpen && backend.plans.length > 0
+    readonly property bool rtl: Qt.application.layoutDirection === Qt.RightToLeft
+    // Material's outlined fields leave the gap for a floating label on the
+    // left even in right-to-left languages, so there the label only shows
+    // while the field is empty and idle.
+    function label(field, text) {
+        return rtl && (field.activeFocus || field.text.length > 0) ? "" : text
+    }
 
     function statusColor(status) {
         return [theme.open, theme.progress, theme.done][Math.max(0, Math.min(2, status))]
@@ -82,6 +89,7 @@ ApplicationWindow {
     // Right-to-left languages mirror the window; the Translator sets the
     // application's layout direction.
     Item {
+        objectName: "root"
         anchors.fill: parent
         LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
         LayoutMirroring.childrenInherit: true
@@ -120,7 +128,7 @@ ApplicationWindow {
                         Layout.maximumWidth: 260
                     }
                     Rectangle { width: 1; height: 24; color: win.line }
-                    ComboBox {
+                    Dropdown {
                         id: floorBox
                         visible: win.hasPlan
                         Layout.preferredWidth: 260
@@ -225,12 +233,14 @@ ApplicationWindow {
 
                 PlanView {
                     id: planView
+                    objectName: "planView"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                 }
                 Rectangle { Layout.fillHeight: true; width: 1; color: win.line }
                 ItemList {
                     id: itemList
+                    objectName: "itemList"
                     Layout.preferredWidth: 360
                     Layout.fillHeight: true
                 }
@@ -320,7 +330,7 @@ ApplicationWindow {
                 TextField {
                     id: renameField
                     Layout.fillWidth: true
-                    placeholderText: qsTr("Floor name")
+                    placeholderText: win.label(renameField, qsTr("Floor name"))
                     onAccepted: { backend.renamePlan(renamePopup.planId, text); renamePopup.close() }
                 }
                 RowLayout {
