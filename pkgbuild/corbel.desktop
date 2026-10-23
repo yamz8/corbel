@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Corbel
+Comment=Punch lists on floor plans
+Comment[da]=Mangellister på plantegninger
+Comment[de]=Mängellisten auf Grundrissen
+Comment[es]=Listas de pendientes sobre planos
+Comment[fr]=Listes de réserves sur plans
+Exec=corbel open %f
+Icon=corbel
+Terminal=false
+Categories=Office;ProjectManagement;
+MimeType=application/x-corbel;
+StartupWMClass=corbel
