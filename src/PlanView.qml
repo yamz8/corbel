@@ -123,29 +123,43 @@ Item {
                     color: win.statusColor(model.status)
                     selected: isSelected
                     z: isSelected ? 2 : 1
-                    Binding on x { value: pin.px * canvas.width - pin.width / 2; when: !drag.drag.active }
-                    Binding on y { value: pin.py * canvas.height - pin.height / 2; when: !drag.drag.active }
+                    // While dragging, the pin follows the pointer's movement since
+                    // the press exactly, so it lands where it is let go.
+                    property bool dragging: false
+                    property real dragX: 0
+                    property real dragY: 0
+                    x: (dragging ? dragX : px) * canvas.width - width / 2
+                    y: (dragging ? dragY : py) * canvas.height - height / 2
 
                     MouseArea {
                         id: drag
                         anchors.fill: parent
-                        cursorShape: drag.drag.active ? Qt.ClosedHandCursor : Qt.PointingHandCursor
+                        cursorShape: pin.dragging ? Qt.ClosedHandCursor : Qt.PointingHandCursor
                         preventStealing: true
                         hoverEnabled: true
-                        drag.target: pin
-                        drag.threshold: 4
-                        drag.minimumX: -pin.width / 2
-                        drag.maximumX: canvas.width - pin.width / 2
-                        drag.minimumY: -pin.height / 2
-                        drag.maximumY: canvas.height - pin.height / 2
-                        onPressed: if (backend.selectedId !== pin.itemId) win.selectItem(pin.itemId)
-                        onReleased: {
-                            if (!drag.drag.active) return
-                            backend.moveItem(pin.itemId, (pin.x + pin.width / 2) / canvas.width,
-                                             (pin.y + pin.height / 2) / canvas.height)
+                        property point start
+                        onPressed: (mouse) => {
+                            start = mapToItem(canvas, mouse.x, mouse.y)
+                            if (backend.selectedId !== pin.itemId) win.selectItem(pin.itemId)
                         }
+                        onPositionChanged: (mouse) => {
+                            if (!pressed) return
+                            const at = mapToItem(canvas, mouse.x, mouse.y)
+                            const dx = at.x - start.x, dy = at.y - start.y
+                            // A small wobble is still a click, not a move.
+                            if (!pin.dragging && Math.hypot(dx, dy) < 4) return
+                            pin.dragX = Math.max(0, Math.min(1, pin.px + dx / canvas.width))
+                            pin.dragY = Math.max(0, Math.min(1, pin.py + dy / canvas.height))
+                            pin.dragging = true
+                        }
+                        onReleased: {
+                            if (!pin.dragging) return
+                            backend.moveItem(pin.itemId, pin.dragX, pin.dragY)
+                            pin.dragging = false
+                        }
+                        onCanceled: pin.dragging = false
                     }
-                    ToolTip.visible: drag.containsMouse && !drag.drag.active
+                    ToolTip.visible: drag.containsMouse && !pin.dragging
                     ToolTip.delay: 400
                     ToolTip.text: "#" + pin.number
                 }

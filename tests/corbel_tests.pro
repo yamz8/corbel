@@ -7,6 +7,6 @@ INCLUDEPATH += ../src
 
 HEADERS += fakepicker.h ../src/backend.h ../src/filepicker.h ../src/itemmodel.h ../src/pin.h ../src/theme.h \
     ../src/translator.h
-SOURCES += main.cpp corbel_tests.cpp ../src/backend.cpp ../src/itemmodel.cpp ../src/pin.cpp \
+SOURCES += main.cpp corbel_tests.cpp window_tests.cpp ../src/backend.cpp ../src/itemmodel.cpp ../src/pin.cpp \
     ../src/planimport.cpp ../src/report.cpp ../src/store.cpp ../src/theme.cpp ../src/translator.cpp
 RESOURCES += ../src/resources.qrc

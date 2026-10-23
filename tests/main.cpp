@@ -6,6 +6,7 @@
 #include "pin.h"
 
 int runCorbelTests(int argc, char **argv);
+int runWindowTests(int argc, char **argv);
 
 int main(int argc, char **argv)
 {
@@ -16,5 +17,6 @@ int main(int argc, char **argv)
     QQuickStyle::setStyle("Material");
     qmlRegisterType<PinItem>("Corbel", 1, 0, "Pin");
     int failed = runCorbelTests(argc, argv);
+    failed |= runWindowTests(argc, argv);
     return failed;
 }

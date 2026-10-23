@@ -74,7 +74,7 @@ poppler (`pdftoppm`) for PDF plans. All of them come with Omarchy.
 
 ```sh
 bin/build      # build/corbel
-bin/test       # tests, offscreen
+bin/test       # tests, including the real window driven offscreen
 bin/install    # builds and installs the package, so Corbel is in the launcher
 ```
 
