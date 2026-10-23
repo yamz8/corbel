@@ -137,6 +137,11 @@ ApplicationWindow {
                         onClicked: renamePopup.openFor(backend.currentPlan)
                     }
                     ToolButton {
+                        visible: win.hasPlan
+                        text: qsTr("Delete floor")
+                        onClicked: deleteFloorPopup.openFor(backend.currentPlan)
+                    }
+                    ToolButton {
                         text: qsTr("Import plan")
                         onClicked: backend.importPlan()
                     }
@@ -163,7 +168,7 @@ ApplicationWindow {
                         onClicked: { editor.commit(); backend.undo() }
                     }
                     Button {
-                        text: qsTr("Export report")
+                        text: backend.filtered ? qsTr("Export %n items", "", backend.reportCount) : qsTr("Export report")
                         highlighted: true
                         enabled: win.hasPlan
                         onClicked: { editor.commit(); backend.exportReport() }
@@ -325,6 +330,57 @@ ApplicationWindow {
                         text: qsTr("Rename")
                         highlighted: true
                         onClicked: { backend.renamePlan(renamePopup.planId, renameField.text); renamePopup.close() }
+                    }
+                }
+            }
+        }
+
+        // Asked first, since a floor takes its items and photos with it; undo
+        // still brings it all back.
+        Popup {
+            id: deleteFloorPopup
+            objectName: "deleteFloorPopup"
+            property int planId: 0
+            property string name: ""
+            property int count: 0
+            function openFor(id) {
+                const plan = backend.plans.find(p => p.id === id)
+                if (!plan) return
+                planId = id
+                name = plan.name
+                count = plan.count
+                if (count === 0) { backend.removePlan(id); return }
+                open()
+            }
+            anchors.centerIn: parent
+            modal: true
+            padding: 20
+            width: 420
+            background: Rectangle { color: win.panel; radius: theme.radius; border.color: win.line }
+            contentItem: ColumnLayout {
+                spacing: 14
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    font.pixelSize: 16
+                    font.weight: Font.Medium
+                    text: qsTr("Delete %1?").arg(deleteFloorPopup.name)
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: win.muted
+                    text: qsTr("Its %n items and their photos are deleted with it. Ctrl+Z brings them back.", "", deleteFloorPopup.count)
+                }
+                RowLayout {
+                    Layout.alignment: Qt.AlignRight
+                    Button { text: qsTr("Cancel"); flat: true; onClicked: deleteFloorPopup.close() }
+                    Button {
+                        objectName: "confirmDeleteFloor"
+                        text: qsTr("Delete floor")
+                        highlighted: true
+                        Material.accent: theme.open
+                        onClicked: { deleteFloorPopup.close(); backend.removePlan(deleteFloorPopup.planId) }
                     }
                 }
             }

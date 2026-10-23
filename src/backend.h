@@ -21,7 +21,7 @@ class Backend : public QObject {
     Q_PROPERTY(bool isOpen READ isOpen NOTIFY projectChanged)
     Q_PROPERTY(QString projectName READ projectName NOTIFY projectChanged)
     Q_PROPERTY(QString projectPath READ projectPath NOTIFY projectChanged)
-    Q_PROPERTY(int generation READ generation NOTIFY projectChanged)
+    Q_PROPERTY(int generation READ generation NOTIFY imagesChanged)
     Q_PROPERTY(QVariantList plans READ plans NOTIFY plansChanged)
     Q_PROPERTY(int currentPlan READ currentPlan WRITE setCurrentPlan NOTIFY currentPlanChanged)
     Q_PROPERTY(QSize currentPlanSize READ currentPlanSize NOTIFY currentPlanChanged)
@@ -34,6 +34,8 @@ class Backend : public QObject {
     Q_PROPERTY(QStringList assignees READ assignees NOTIFY itemsChanged)
     Q_PROPERTY(QVariantList statusCounts READ statusCounts NOTIFY itemsChanged)
     Q_PROPERTY(int totalCount READ totalCount NOTIFY itemsChanged)
+    // How many items a report exported now would hold.
+    Q_PROPERTY(int reportCount READ reportCount NOTIFY itemsChanged)
     Q_PROPERTY(QString tradeFilter READ tradeFilter WRITE setTradeFilter NOTIFY filtersChanged)
     Q_PROPERTY(QString assigneeFilter READ assigneeFilter WRITE setAssigneeFilter NOTIFY filtersChanged)
     Q_PROPERTY(int floorFilter READ floorFilter WRITE setFloorFilter NOTIFY filtersChanged)
@@ -66,15 +68,16 @@ public:
     QStringList assignees() const;
     QVariantList statusCounts() const;
     int totalCount() const { return m_all.size(); }
-    QString tradeFilter() const { return m_tradeFilter; }
+    int reportCount() const;
+    QString tradeFilter() const { return m_filter.trade; }
     void setTradeFilter(const QString &trade);
-    QString assigneeFilter() const { return m_assigneeFilter; }
+    QString assigneeFilter() const { return m_filter.assignee; }
     void setAssigneeFilter(const QString &assignee);
-    int floorFilter() const { return m_floorFilter; }
+    int floorFilter() const { return m_filter.floor; }
     void setFloorFilter(int planId);
-    int statusFilter() const { return m_statusFilter; }
+    int statusFilter() const { return m_filter.status; }
     void setStatusFilter(int status);
-    bool filtered() const;
+    bool filtered() const { return !m_filter.isEmpty(); }
     bool canUndo() const { return !m_undo.isEmpty(); }
     bool canRedo() const { return !m_redo.isEmpty(); }
     QString error() const { return m_error; }
@@ -105,6 +108,7 @@ public:
     Q_INVOKABLE void removeItem(int id);
     Q_INVOKABLE void removePhoto(int photoId);
     Q_INVOKABLE void renamePlan(int id, const QString &name);
+    Q_INVOKABLE void removePlan(int id);
     Q_INVOKABLE void select(int id);
     Q_INVOKABLE void selectRelative(int step);
     Q_INVOKABLE void clearFilters();
@@ -124,20 +128,29 @@ signals:
     void historyChanged();
     void errorChanged();
     void noticeChanged();
+    void imagesChanged();
     // Asks QML to put keyboard focus on the new item's title.
     void itemAdded(int id);
 
 private:
-    struct Change {
+    // One undoable step changes an item or a floor; a change is the steps
+    // one action took (importing a PDF adds a floor per page).
+    struct Step {
+        bool plan;
         int id;
         QVariantMap before;
         QVariantMap after;
     };
+    using Change = QList<Step>;
 
     void pickerSelected(const QString &purpose, const QList<QUrl> &urls);
     void setError(const QString &message);
     void setNotice(const QString &message);
     void record(int id, const QVariantMap &before, bool withPhotos);
+    void push(const Change &change);
+    void setFilter(const ItemFilter &filter);
+    void forgetImages();
+    void showPlan(int id);
     void apply(const Change &change, bool forward);
     void refresh();
     bool matches(const Item &item, bool ignoreFloor) const;
@@ -154,10 +167,7 @@ private:
     QHash<int, int> m_photoCounts;
     ItemModel m_items;
     ItemModel m_pins;
-    QString m_tradeFilter;
-    QString m_assigneeFilter;
-    int m_floorFilter = 0;
-    int m_statusFilter = -1;
+    ItemFilter m_filter;
     QList<Change> m_undo;
     QList<Change> m_redo;
     QString m_error;

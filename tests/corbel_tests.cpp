@@ -43,6 +43,18 @@ private:
         image.save(path);
         return path;
     }
+    static int pdfPages(const QString &path) {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly))
+            return -1;
+        int count = 0;
+        auto pages = QRegularExpression("/Type\\s*/Page[^s]").globalMatch(QString::fromLatin1(file.readAll()));
+        while (pages.hasNext()) {
+            pages.next();
+            ++count;
+        }
+        return count;
+    }
     // A project with one plan, ready for items.
     static QString makeProject(const QTemporaryDir &dir) {
         Store store;
@@ -271,8 +283,81 @@ private slots:
         QCOMPARE(QDir(dir.path()).entryList(QDir::Files).size(), 2);
 
         QString error;
-        QVERIFY(!writeReport(backend.store(), dir.filePath("missing/dir/report.pdf"), &error));
+        QVERIFY(!writeReport(backend.store(), dir.filePath("missing/dir/report.pdf"), {}, &error));
         QVERIFY(!error.isEmpty());
+    }
+
+    void floorsAreDeletedWithTheirItemsAndComeBack()
+    {
+        QTemporaryDir dir;
+        Backend backend(nullptr);
+        QVERIFY(backend.openProjectAt(makeProject(dir)));
+        const int ground = backend.currentPlan();
+        QVERIFY(backend.importPlanFrom(writeImage(dir.filePath("first.png"), QSize(400, 300), Qt::white)));
+        const int first = backend.currentPlan();
+        QVERIFY(first != ground);
+        const int id = backend.addItem(.5, .5);
+        backend.setField(id, "title", "Loose handrail");
+        backend.setFloorFilter(first);
+
+        backend.removePlan(first);
+        QCOMPARE(backend.plans().size(), 1);
+        QCOMPARE(backend.totalCount(), 0);
+        QCOMPARE(backend.currentPlan(), ground);
+        QCOMPARE(backend.floorFilter(), 0);
+        QCOMPARE(backend.selectedId(), 0);
+
+        backend.undo();
+        QCOMPARE(backend.plans().size(), 2);
+        QCOMPARE(backend.currentPlan(), first);
+        QCOMPARE(backend.store().item(id).title, QString("Loose handrail"));
+        QCOMPARE(backend.planImage(first).size(), QSize(400, 300));
+        backend.redo();
+        QCOMPARE(backend.plans().size(), 1);
+    }
+
+    void importsAndRenamesAreUndone()
+    {
+        QTemporaryDir dir;
+        Backend backend(nullptr);
+        QVERIFY(backend.openProjectAt(makeProject(dir)));
+        const int ground = backend.currentPlan();
+        backend.renamePlan(ground, "Level 0");
+        QCOMPARE(backend.store().plan(ground).name, QString("Level 0"));
+        QVERIFY(backend.importPlanFrom(writeImage(dir.filePath("roof.png"), QSize(200, 100), Qt::gray)));
+        QCOMPARE(backend.plans().size(), 2);
+        backend.undo();
+        QCOMPARE(backend.plans().size(), 1);
+        QCOMPARE(backend.currentPlan(), ground);
+        backend.undo();
+        QCOMPARE(backend.store().plan(ground).name, QString("Ground"));
+        backend.redo();
+        backend.redo();
+        QCOMPARE(backend.plans().size(), 2);
+    }
+
+    void filteredReportsHoldOnlyWhatMatches()
+    {
+        QTemporaryDir dir;
+        Backend backend(nullptr);
+        QVERIFY(backend.openProjectAt(makeProject(dir)));
+        const int ground = backend.currentPlan();
+        QVERIFY(backend.importPlanFrom(writeImage(dir.filePath("first.png"), QSize(400, 300), Qt::white)));
+        backend.setField(backend.addItem(.5, .5), "trade", "Electrical");
+        backend.setCurrentPlan(ground);
+        backend.setField(backend.addItem(.2, .2), "trade", "Painting");
+        backend.select(0);
+
+        backend.setTradeFilter("Electrical");
+        QCOMPARE(backend.reportCount(), 1);
+        QVERIFY(backend.exportReportTo(dir.filePath("electrical.pdf")));
+        backend.clearFilters();
+        QVERIFY(backend.exportReportTo(dir.filePath("all.pdf")));
+        // The table, then the Electrical item's one floor; the full report
+        // has both floors.
+        QCOMPARE(pdfPages(dir.filePath("electrical.pdf")), 2);
+        QCOMPARE(pdfPages(dir.filePath("all.pdf")), 3);
+        QCOMPARE(filterDescription(backend.store(), ItemFilter{"Electrical", "", 0, 2}), QString("Done · Electrical"));
     }
 
     void statusesHaveNamesAndPrintColors()

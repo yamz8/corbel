@@ -35,6 +35,20 @@ struct Item {
     QDateTime created;
 };
 
+// Which items a list or report shows; empty fields match everything.
+struct ItemFilter {
+    QString trade;
+    QString assignee;
+    int floor = 0;
+    int status = -1;
+
+    bool isEmpty() const { return trade.isEmpty() && assignee.isEmpty() && !floor && status < 0; }
+    bool matches(const Item &item) const;
+    bool operator==(const ItemFilter &other) const {
+        return trade == other.trade && assignee == other.assignee && floor == other.floor && status == other.status;
+    }
+};
+
 struct Photo {
     int id = 0;
     int itemId = 0;
@@ -87,12 +101,20 @@ public:
     // Makes the item match a snapshot; an empty snapshot of an id removes it.
     bool restore(int id, const QVariantMap &snapshot);
 
+    // The same for a floor: its name and position, and with its contents
+    // also the plan image and every item on it, so a deleted floor comes
+    // back whole. An empty snapshot removes the floor and its items.
+    QVariantMap planSnapshot(int id, bool withContents) const;
+    bool restorePlan(int id, const QVariantMap &snapshot);
+    bool removePlan(int id);
+
     static Item itemFromMap(const QVariantMap &map);
     static QVariantMap itemToMap(const Item &item);
 
 private:
     bool connect(const QString &path);
     bool deleteItemRows(int id);
+    bool restoreItemRows(int id, const QVariantMap &snapshot);
     bool fail(const QString &message) const;
 
     QString m_connection;

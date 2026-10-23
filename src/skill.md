@@ -19,6 +19,8 @@ none of its commands need a display.
   project; every PDF page becomes a floor.
 - `corbel import site.corbel level2.png` adds more floors.
 - `corbel plans site.corbel --json` lists floors with their ids.
+- `corbel rename site.corbel 1 "Ground floor"` renames a floor;
+  `corbel delete-floor site.corbel 2 --yes` deletes one with its items.
 - `corbel items site.corbel --json [--status open|progress|done] [--trade T]
   [--assignee A] [--floor ID]` lists items.
 - `corbel add site.corbel --title "Cracked tile" --floor 1 --x 0.42 --y 0.61
@@ -27,7 +29,9 @@ none of its commands need a display.
   the pin goes in the middle.
 - `corbel set site.corbel 12 --status done` changes item 12 (any option from
   `add` works).
-- `corbel export site.corbel report.pdf` writes the closeout report.
+- `corbel export site.corbel report.pdf` writes the closeout report. The
+  filters from `items` narrow it, e.g. `--trade Electrical --status open` for a
+  report to send the electrician.
 
 Every command takes `--json`, exits 0 on success and 1 on failure, and writes
 errors to stderr. `corbel <command> --help` lists its options.

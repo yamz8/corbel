@@ -1,7 +1,6 @@
 #include "report.h"
 
 #include "pin.h"
-#include "store.h"
 
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -66,7 +65,20 @@ QString statusLabel(int status) {
     }
 }
 
-bool writeReport(const Store &store, const QString &path, QString *error) {
+QString filterDescription(const Store &store, const ItemFilter &filter) {
+    QStringList parts;
+    if (filter.status >= 0)
+        parts << statusLabel(filter.status);
+    if (!filter.trade.isEmpty())
+        parts << filter.trade;
+    if (!filter.assignee.isEmpty())
+        parts << filter.assignee;
+    if (filter.floor)
+        parts << store.plan(filter.floor).name;
+    return parts.join(" · ");
+}
+
+bool writeReport(const Store &store, const QString &path, const ItemFilter &filter, QString *error) {
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
         *error = tr("Could not write %1: %2").arg(path, file.errorString());
@@ -74,8 +86,19 @@ bool writeReport(const Store &store, const QString &path, QString *error) {
     }
 
     const QString projectName = store.name();
-    const QList<Plan> plans = store.plans();
-    const QList<Item> items = store.items();
+    QList<Item> items;
+    for (const auto &item : store.items())
+        if (filter.matches(item))
+            items << item;
+    // A filtered report shows only the floors its items are on.
+    QList<Plan> plans;
+    for (const auto &plan : store.plans()) {
+        bool used = filter.isEmpty();
+        for (const auto &item : items)
+            used = used || item.planId == plan.id;
+        if (used)
+            plans << plan;
+    }
     QHash<int, QString> planNames;
     for (const auto &plan : plans)
         planNames.insert(plan.id, plan.name);
@@ -114,7 +137,12 @@ bool writeReport(const Store &store, const QString &path, QString *error) {
         for (int status = 0; status < 3; ++status)
             summary += QString(" · %1 %2").arg(statusLabel(status)).arg(QLocale().toString(counts[status]));
         text(QRectF(0, page.y, width, 30), summary, font(10), Faint, lead);
-        page.y += 50;
+        page.y += 34;
+        if (!filter.isEmpty()) {
+            text(QRectF(0, page.y, width, 30), tr("Only %1").arg(filterDescription(store, filter)), font(10, true), Ink, lead);
+            page.y += 34;
+        }
+        page.y += 16;
 
         // The item table, with its header repeated on every page.
         struct Column { QString title; qreal share; };
@@ -138,7 +166,8 @@ bool writeReport(const Store &store, const QString &path, QString *error) {
         };
         header();
         if (items.isEmpty()) {
-            text(QRectF(0, page.y + 10, width, rowHeight), tr("No items yet."), font(10), Faint, lead);
+            text(QRectF(0, page.y + 10, width, rowHeight), filter.isEmpty() ? tr("No items yet.") : tr("No items match."),
+                 font(10), Faint, lead);
             page.y += rowHeight + 10;
         }
         for (const auto &item : items) {

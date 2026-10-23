@@ -109,62 +109,58 @@ QVariantList Backend::statusCounts() const {
     return {counts[0], counts[1], counts[2]};
 }
 
-void Backend::setTradeFilter(const QString &trade) {
-    if (trade == m_tradeFilter)
+int Backend::reportCount() const {
+    int count = 0;
+    for (const auto &item : m_all)
+        count += m_filter.matches(item);
+    return count;
+}
+
+void Backend::setFilter(const ItemFilter &filter) {
+    if (filter == m_filter)
         return;
-    m_tradeFilter = trade;
+    m_filter = filter;
     emit filtersChanged();
     refresh();
+}
+
+void Backend::setTradeFilter(const QString &trade) {
+    ItemFilter filter = m_filter;
+    filter.trade = trade;
+    setFilter(filter);
 }
 
 void Backend::setAssigneeFilter(const QString &assignee) {
-    if (assignee == m_assigneeFilter)
-        return;
-    m_assigneeFilter = assignee;
-    emit filtersChanged();
-    refresh();
+    ItemFilter filter = m_filter;
+    filter.assignee = assignee;
+    setFilter(filter);
 }
 
 void Backend::setFloorFilter(int planId) {
-    if (planId == m_floorFilter)
-        return;
-    m_floorFilter = planId;
-    emit filtersChanged();
+    ItemFilter filter = m_filter;
+    filter.floor = planId;
     if (planId)
         setCurrentPlan(planId);
-    refresh();
+    setFilter(filter);
 }
 
 void Backend::setStatusFilter(int status) {
-    if (status == m_statusFilter)
-        return;
-    m_statusFilter = status;
-    emit filtersChanged();
-    refresh();
+    ItemFilter filter = m_filter;
+    filter.status = status;
+    setFilter(filter);
 }
 
-bool Backend::filtered() const {
-    return !m_tradeFilter.isEmpty() || !m_assigneeFilter.isEmpty() || m_floorFilter || m_statusFilter >= 0;
-}
-
-void Backend::clearFilters() {
-    m_tradeFilter.clear();
-    m_assigneeFilter.clear();
-    m_floorFilter = 0;
-    m_statusFilter = -1;
-    emit filtersChanged();
-    refresh();
-}
+void Backend::clearFilters() { setFilter({}); }
 
 // The selected item always shows, so a new item doesn't vanish into a filter
 // before it has been given the trade or status the filter is looking for.
 bool Backend::matches(const Item &item, bool ignoreFloor) const {
     if (item.id == m_selectedId)
         return true;
-    return (m_tradeFilter.isEmpty() || item.trade == m_tradeFilter) &&
-           (m_assigneeFilter.isEmpty() || item.assignee == m_assigneeFilter) &&
-           (ignoreFloor || !m_floorFilter || item.planId == m_floorFilter) &&
-           (m_statusFilter < 0 || item.status == m_statusFilter);
+    ItemFilter filter = m_filter;
+    if (ignoreFloor)
+        filter.floor = 0;
+    return filter.matches(item);
 }
 
 void Backend::refresh() {
@@ -238,7 +234,12 @@ void Backend::addPhotos() {
 void Backend::exportReport() {
     if (!isOpen())
         return;
-    const QString base = QFileInfo(m_store.path()).absolutePath() + "/" + tr("%1 punch list").arg(m_name) + ".pdf";
+    // A filtered report is named for what it holds: "Site punch list - Electrical".
+    QString name = tr("%1 punch list").arg(m_name);
+    if (filtered())
+        name += " - " + filterDescription(m_store, m_filter).replace(" · ", ", ");
+    name.replace('/', '-');
+    const QString base = QFileInfo(m_store.path()).absolutePath() + "/" + name + ".pdf";
     m_picker->save("export", tr("Export Report"), base, {tr("PDF documents"), {"*.pdf"}, {"application/pdf"}});
 }
 
@@ -284,15 +285,11 @@ bool Backend::openProjectAt(const QString &path) {
     probe.close();
     m_store.open(path);
     m_name = m_store.name();
-    ++m_generation;
-    m_planCache.clear();
+    forgetImages();
     m_undo.clear();
     m_redo.clear();
     m_selectedId = 0;
-    m_tradeFilter.clear();
-    m_assigneeFilter.clear();
-    m_floorFilter = 0;
-    m_statusFilter = -1;
+    m_filter = {};
     const auto plans = m_store.plans();
     m_currentPlan = plans.isEmpty() ? 0 : plans.first().id;
     rememberFolder(m_store.path());
@@ -323,6 +320,7 @@ bool Backend::importPlanFrom(const QString &path) {
         return false;
     }
     int first = 0;
+    Change change;
     for (const auto &page : pages) {
         const int id = m_store.addPlan(page.name, page.image);
         if (!id) {
@@ -330,7 +328,11 @@ bool Backend::importPlanFrom(const QString &path) {
             break;
         }
         first = first ? first : id;
+        change.append({true, id, {}, m_store.planSnapshot(id, true)});
     }
+    if (!change.isEmpty())
+        push(change);
+    forgetImages();
     rememberFolder(path);
     if (first) {
         clearError();
@@ -371,7 +373,7 @@ bool Backend::exportReportTo(const QString &path) {
     if (!target.endsWith(".pdf", Qt::CaseInsensitive))
         target += ".pdf";
     QString error;
-    if (!writeReport(m_store, target, &error)) {
+    if (!writeReport(m_store, target, m_filter, &error)) {
         setError(error);
         return false;
     }
@@ -394,8 +396,8 @@ int Backend::addItem(double x, double y) {
     item.number = m_store.nextNumber();
     item.x = qBound(0.0, x, 1.0);
     item.y = qBound(0.0, y, 1.0);
-    item.trade = m_tradeFilter;
-    item.assignee = m_assigneeFilter;
+    item.trade = m_filter.trade;
+    item.assignee = m_filter.assignee;
     item.created = QDateTime::currentDateTime();
     const int id = m_store.insertItem(item);
     if (!id) {
@@ -457,6 +459,7 @@ void Backend::removeItem(int id) {
     record(id, before, true);
     if (m_selectedId == id)
         m_selectedId = 0;
+    forgetImages();
     refresh();
 }
 
@@ -466,12 +469,37 @@ void Backend::removePhoto(int photoId) {
     if (before.isEmpty() || !m_store.removePhoto(photoId))
         return;
     record(id, before, true);
+    forgetImages();
     refresh();
 }
 
 void Backend::renamePlan(int id, const QString &name) {
-    if (name.trimmed().isEmpty() || !m_store.renamePlan(id, name.trimmed()))
+    const QVariantMap before = m_store.planSnapshot(id, false);
+    if (before.isEmpty() || name.trimmed().isEmpty() || name.trimmed() == before.value("name"))
         return;
+    if (!m_store.renamePlan(id, name.trimmed())) {
+        setError(m_store.error());
+        return;
+    }
+    push({{true, id, before, m_store.planSnapshot(id, false)}});
+    refresh();
+}
+
+// The floor goes with its items and their photos, all of it undoable.
+void Backend::removePlan(int id) {
+    const QVariantMap before = m_store.planSnapshot(id, true);
+    if (before.isEmpty())
+        return;
+    if (!m_store.removePlan(id)) {
+        setError(m_store.error());
+        return;
+    }
+    push({{true, id, before, {}}});
+    for (const auto &value : before.value("items").toList())
+        if (value.toMap().value("id").toInt() == m_selectedId)
+            m_selectedId = 0;
+    showPlan(m_currentPlan);
+    forgetImages();
     refresh();
 }
 
@@ -498,24 +526,63 @@ void Backend::selectRelative(int step) {
 }
 
 void Backend::record(int id, const QVariantMap &before, bool withPhotos) {
-    m_undo.append({id, before, m_store.snapshot(id, withPhotos)});
+    push({{false, id, before, m_store.snapshot(id, withPhotos)}});
+}
+
+void Backend::push(const Change &change) {
+    m_undo.append(change);
     m_redo.clear();
     emit historyChanged();
 }
 
+void Backend::forgetImages() {
+    // SQLite reuses the ids of deleted rows, so cached pictures are dropped
+    // whenever a plan or photo goes away rather than shown for a newcomer.
+    ++m_generation;
+    m_planCache.clear();
+    emit imagesChanged();
+}
+
 void Backend::apply(const Change &change, bool forward) {
-    if (!m_store.restore(change.id, forward ? change.after : change.before)) {
-        setError(m_store.error());
-        return;
+    // Steps are undone in the reverse of the order they were done.
+    int landed = 0, landedPlan = 0;
+    for (int i = 0; i < change.size(); ++i) {
+        const Step &step = change[forward ? i : change.size() - 1 - i];
+        const QVariantMap &state = forward ? step.after : step.before;
+        const bool ok = step.plan ? m_store.restorePlan(step.id, state) : m_store.restore(step.id, state);
+        if (!ok) {
+            setError(m_store.error());
+            break;
+        }
+        if (step.plan)
+            landedPlan = state.isEmpty() ? landedPlan : step.id;
+        else
+            landed = step.id;
     }
+    forgetImages();
+
     // Land on what changed, so the undo is visible.
-    const Item item = m_store.item(change.id);
+    const Item item = m_store.item(landed);
     m_selectedId = item.id;
-    if (item.id && item.planId != m_currentPlan) {
-        m_currentPlan = item.planId;
+    showPlan(item.id ? item.planId : landedPlan ? landedPlan : m_currentPlan);
+    refresh();
+}
+
+// Shows a floor, or the first one when it is gone, and drops a floor filter
+// for a floor that no longer exists.
+void Backend::showPlan(int id) {
+    if (!m_store.plan(id).id) {
+        const auto plans = m_store.plans();
+        id = plans.isEmpty() ? 0 : plans.first().id;
+    }
+    if (m_filter.floor && !m_store.plan(m_filter.floor).id) {
+        m_filter.floor = 0;
+        emit filtersChanged();
+    }
+    if (id != m_currentPlan) {
+        m_currentPlan = id;
         emit currentPlanChanged();
     }
-    refresh();
 }
 
 void Backend::undo() {

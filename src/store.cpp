@@ -356,28 +356,115 @@ QVariantMap Store::snapshot(int id, bool withPhotos) const {
 bool Store::restore(int id, const QVariantMap &snapshot) {
     auto db = database(m_connection);
     db.transaction();
-    bool ok = true;
-    if (snapshot.isEmpty()) {
-        ok = deleteItemRows(id);
-    } else {
-        Item item = itemFromMap(snapshot);
-        item.id = id;
-        ok = this->item(id).id ? updateItem(item) : insertItem(item) == id;
-        if (ok && snapshot.contains("photos")) {
-            QSqlQuery query(db);
-            query.prepare("DELETE FROM photos WHERE item_id = :id");
-            query.bindValue(":id", id);
-            ok = query.exec();
-            for (const auto &value : snapshot.value("photos").toList()) {
-                const auto photo = value.toMap();
-                ok = ok && addPhoto(id, photo.value("name").toString(), photo.value("data").toByteArray(),
-                                    photo.value("id").toInt());
-            }
-        }
-    }
-    if (!ok) {
+    if (!restoreItemRows(id, snapshot)) {
         db.rollback();
         return false;
     }
     return db.commit();
+}
+
+// Without a transaction of its own, so a floor can bring back all its items
+// inside one.
+bool Store::restoreItemRows(int id, const QVariantMap &snapshot) {
+    if (snapshot.isEmpty())
+        return deleteItemRows(id);
+    Item item = itemFromMap(snapshot);
+    item.id = id;
+    bool ok = this->item(id).id ? updateItem(item) : insertItem(item) == id;
+    if (ok && snapshot.contains("photos")) {
+        QSqlQuery query(database(m_connection));
+        query.prepare("DELETE FROM photos WHERE item_id = :id");
+        query.bindValue(":id", id);
+        ok = query.exec();
+        for (const auto &value : snapshot.value("photos").toList()) {
+            const auto photo = value.toMap();
+            ok = ok && addPhoto(id, photo.value("name").toString(), photo.value("data").toByteArray(),
+                                photo.value("id").toInt());
+        }
+    }
+    return ok;
+}
+
+bool Store::removePlan(int id) { return restorePlan(id, {}); }
+
+QVariantMap Store::planSnapshot(int id, bool withContents) const {
+    QSqlQuery query(database(m_connection));
+    query.prepare(QString("SELECT name, width, height, position%1 FROM plans WHERE id = :id")
+                      .arg(withContents ? ", image" : ""));
+    query.bindValue(":id", id);
+    if (!query.exec() || !query.next())
+        return {};
+    QVariantMap map{{"id", id},
+                    {"name", query.value(0).toString()},
+                    {"width", query.value(1).toInt()},
+                    {"height", query.value(2).toInt()},
+                    {"position", query.value(3).toInt()}};
+    if (withContents) {
+        map.insert("image", query.value(4).toByteArray());
+        QVariantList items;
+        for (const auto &item : this->items())
+            if (item.planId == id)
+                items << snapshot(item.id, true);
+        map.insert("items", items);
+    }
+    return map;
+}
+
+bool Store::restorePlan(int id, const QVariantMap &snapshot) {
+    auto db = database(m_connection);
+    db.transaction();
+    QSqlQuery query(db);
+    bool ok = true;
+    auto fail = [&] {
+        m_error = query.lastError().text();
+        db.rollback();
+        return false;
+    };
+
+    // The floor's items go with it, whichever way it moves.
+    for (const auto &item : items())
+        if (item.planId == id)
+            ok = ok && deleteItemRows(item.id);
+    if (!ok) {
+        db.rollback();
+        return false;
+    }
+
+    const bool exists = plan(id).id != 0;
+    if (snapshot.isEmpty()) {
+        query.prepare("DELETE FROM plans WHERE id = :id");
+        query.bindValue(":id", id);
+        if (!query.exec())
+            return fail();
+        return db.commit();
+    }
+
+    if (exists) {
+        query.prepare("UPDATE plans SET name = :name, position = :position WHERE id = :id");
+    } else {
+        query.prepare("INSERT INTO plans (id, name, width, height, image, position)"
+                      " VALUES (:id, :name, :width, :height, :image, :position)");
+        query.bindValue(":width", snapshot.value("width").toInt());
+        query.bindValue(":height", snapshot.value("height").toInt());
+        query.bindValue(":image", snapshot.value("image").toByteArray());
+    }
+    query.bindValue(":id", id);
+    query.bindValue(":name", snapshot.value("name").toString());
+    query.bindValue(":position", snapshot.value("position").toInt());
+    if (!query.exec())
+        return fail();
+
+    for (const auto &value : snapshot.value("items").toList()) {
+        const QVariantMap item = value.toMap();
+        if (!restoreItemRows(item.value("id").toInt(), item)) {
+            db.rollback();
+            return false;
+        }
+    }
+    return db.commit();
+}
+
+bool ItemFilter::matches(const Item &item) const {
+    return (trade.isEmpty() || item.trade == trade) && (assignee.isEmpty() || item.assignee == assignee) &&
+           (!floor || item.planId == floor) && (status < 0 || item.status == status);
 }

@@ -15,7 +15,7 @@
 #include <cstdio>
 
 namespace {
-const QStringList Commands = {"new", "import", "plans", "items", "add", "set", "export", "skill", "help"};
+const QStringList Commands = {"new", "import", "plans", "rename", "delete-floor", "items", "add", "set", "export", "skill", "help"};
 
 void print(FILE *stream, const QString &text) { fprintf(stream, "%s\n", qPrintable(text)); }
 void print(const QJsonObject &object) { fprintf(stdout, "%s", QJsonDocument(object).toJson().constData()); }
@@ -77,6 +77,29 @@ struct Command {
         if (!store.open(argument(1))) {
             print(stderr, store.error());
             return false;
+        }
+        return true;
+    }
+    // Filter options shared by items and export.
+    void filterOptions() {
+        option("status", "Only items with this status: open, progress, done", "status");
+        option("trade", "Only items for this trade", "trade");
+        option("assignee", "Only items assigned to this person", "name");
+        option("floor", "Only items on this floor id", "id");
+    }
+    // False, with a message, when a filter value is no good.
+    bool readFilter(const Store &store, ItemFilter &filter) const {
+        if (parser.isSet("status")) {
+            filter.status = parseStatus(parser.value("status"));
+            if (filter.status < 0)
+                return !fail("--status is open, progress, or done.");
+        }
+        filter.trade = parser.value("trade");
+        filter.assignee = parser.value("assignee");
+        if (parser.isSet("floor")) {
+            filter.floor = parser.value("floor").toInt();
+            if (!store.plan(filter.floor).id)
+                return !fail(QString("There is no floor %1; corbel plans lists them.").arg(parser.value("floor")));
         }
         return true;
     }
@@ -206,25 +229,71 @@ int plans(const QStringList &arguments) {
     return 0;
 }
 
-int items(const QStringList &arguments) {
-    Command command("items", "List the punch list, optionally filtered.");
-    command.option("status", "Only items with this status: open, progress, done", "status");
-    command.option("trade", "Only items for this trade", "trade");
-    command.option("assignee", "Only items assigned to this person", "name");
-    command.option("floor", "Only items on this floor id", "id");
+// Floors are found by the id corbel plans prints.
+Plan findPlan(const Store &store, const QString &id) {
+    const Plan plan = store.plan(id.toInt());
+    if (!plan.id)
+        fail(QString("There is no floor %1; corbel plans lists them.").arg(id));
+    return plan;
+}
+
+int rename(const QStringList &arguments) {
+    Command command("rename", "Rename a floor.", "floor");
+    command.parser.addPositionalArgument("name", "New name", "<name>");
     command.parser.process(arguments);
     Store store;
     if (!command.open(store))
         return 1;
-    const int status = command.parser.isSet("status") ? parseStatus(command.parser.value("status")) : -1;
-    if (command.parser.isSet("status") && status < 0)
-        return fail("--status is open, progress, or done.");
+    const Plan plan = findPlan(store, command.argument(2));
+    const QString name = command.argument(3).trimmed();
+    if (!plan.id)
+        return 1;
+    if (name.isEmpty())
+        return fail("Give the floor a name.");
+    if (!store.renamePlan(plan.id, name))
+        return fail(store.error());
+    if (command.json())
+        print({{"ok", true}, {"plan", QJsonObject{{"id", plan.id}, {"name", name}}}});
+    else
+        print(stdout, QString("Renamed floor %1 to %2").arg(plan.id).arg(name));
+    return 0;
+}
+
+int deleteFloor(const QStringList &arguments) {
+    Command command("delete-floor", "Delete a floor with all its items and their photos.", "floor");
+    command.option("yes", "Delete even when the floor has items");
+    command.parser.process(arguments);
+    Store store;
+    if (!command.open(store))
+        return 1;
+    const Plan plan = findPlan(store, command.argument(2));
+    if (!plan.id)
+        return 1;
+    int count = 0;
+    for (const auto &item : store.items())
+        count += item.planId == plan.id;
+    if (count && !command.parser.isSet("yes"))
+        return fail(QString("Floor %1 has %2 items; pass --yes to delete them too.").arg(plan.id).arg(count));
+    if (!store.removePlan(plan.id))
+        return fail(store.error());
+    if (command.json())
+        print({{"ok", true}, {"deleted", plan.id}, {"items", count}});
+    else
+        print(stdout, QString("Deleted floor %1 and %2 items").arg(plan.id).arg(count));
+    return 0;
+}
+
+int items(const QStringList &arguments) {
+    Command command("items", "List the punch list, optionally filtered.");
+    command.filterOptions();
+    command.parser.process(arguments);
+    Store store;
+    ItemFilter filter;
+    if (!command.open(store) || !command.readFilter(store, filter))
+        return 1;
     QJsonArray list;
     for (const auto &item : store.items()) {
-        if ((status >= 0 && item.status != status) ||
-            (command.parser.isSet("trade") && item.trade != command.parser.value("trade")) ||
-            (command.parser.isSet("assignee") && item.assignee != command.parser.value("assignee")) ||
-            (command.parser.isSet("floor") && item.planId != command.parser.value("floor").toInt()))
+        if (!filter.matches(item))
             continue;
         list << toJson(store, item);
         if (!command.json())
@@ -295,16 +364,18 @@ int set(const QStringList &arguments) {
 }
 
 int exportReport(const QStringList &arguments) {
-    Command command("export", "Write the closeout report as a PDF.", "report.pdf");
+    Command command("export", "Write the closeout report as a PDF, optionally for some items only.", "report.pdf");
+    command.filterOptions();
     command.parser.process(arguments);
     Store store;
-    if (!command.open(store))
+    ItemFilter filter;
+    if (!command.open(store) || !command.readFilter(store, filter))
         return 1;
     const QString target = command.argument(2);
     if (target.isEmpty())
         return fail("Name the PDF to write.");
     QString error;
-    if (!writeReport(store, target, &error))
+    if (!writeReport(store, target, filter, &error))
         return fail(error);
     if (command.json())
         print({{"ok", true}, {"report", QFileInfo(target).absoluteFilePath()}});
@@ -336,10 +407,12 @@ QString cliSummary() {
            "  new <project> [--plan file]    Create a project\n"
            "  import <project> <plan>        Add a floor plan (PDF or image)\n"
            "  plans <project>                List floors\n"
+           "  rename <project> <floor> <name> Rename a floor\n"
+           "  delete-floor <project> <floor> Delete a floor and its items\n"
            "  items <project> [filters]      List the punch list\n"
            "  add <project> --title ...      Add an item\n"
            "  set <project> <number> ...     Change an item\n"
-           "  export <project> <report.pdf>  Write the closeout report\n"
+           "  export <project> <report.pdf>  Write the closeout report (filters work)\n"
            "  skill install                  Install the agent skill\n\n"
            "Every command takes --help, and --json for machine-readable output.";
 }
@@ -353,6 +426,8 @@ int runCli(const QStringList &arguments) {
     if (name == "new") return newProject(arguments);
     if (name == "import") return importPlan(arguments);
     if (name == "plans") return plans(arguments);
+    if (name == "rename") return rename(arguments);
+    if (name == "delete-floor") return deleteFloor(arguments);
     if (name == "items") return items(arguments);
     if (name == "add") return add(arguments);
     if (name == "set") return set(arguments);

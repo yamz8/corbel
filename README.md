@@ -13,7 +13,10 @@ plan with its pins, and the photos.
   status of open, in progress, or done. Pins are colored by status.
 - **Filter the list** by status, trade, assignee, or floor. Selecting an item
   in the list selects it on the plan, and the other way round.
-- **Export the closeout report** as a PDF.
+- **Export the closeout report** as a PDF. With a filter set, the report holds
+  just those items and their floors, ready to send to one trade or one person.
+- **Manage floors.** Rename or delete a floor; deleting one, importing one, and
+  renaming one can all be undone.
 - **One file per project.** A `.corbel` file is a SQLite database holding the
   plans, items, and photos, so it can be copied or backed up whole. The plans
   and photos you import are never changed.
@@ -52,10 +55,12 @@ Every command works on a project without a window, takes `--json`, and exits
 ```sh
 corbel new site.corbel --name "Harbor Street" --plan plans.pdf
 corbel plans site.corbel
+corbel rename site.corbel 1 "Ground floor"
 corbel add site.corbel --title "Cracked tile" --floor 1 --x 0.4 --y 0.6 --trade Tiling
 corbel items site.corbel --status open
 corbel set site.corbel 3 --status done
 corbel export site.corbel closeout.pdf
+corbel export site.corbel electrical.pdf --trade Electrical --status open
 corbel open site.corbel
 ```
 
