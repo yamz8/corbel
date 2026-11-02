@@ -168,6 +168,7 @@ Rectangle {
                 Layout.preferredHeight: 110
                 TextArea {
                     id: notesArea
+                    objectName: "notesField"
                     placeholderText: win.label(notesArea, qsTr("Notes"))
                     wrapMode: TextEdit.Wrap
                     onActiveFocusChanged: if (!activeFocus) editor.commit()

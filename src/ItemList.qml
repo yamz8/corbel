@@ -24,6 +24,7 @@ Rectangle {
             Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
+                objectName: "statusFilter"
                 category: qsTr("Status")
                 model: [qsTr("All statuses"), qsTr("Open"), qsTr("In progress"), qsTr("Done")]
                 currentIndex: backend.statusFilter + 1
@@ -32,6 +33,7 @@ Rectangle {
             Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
+                objectName: "floorFilter"
                 category: qsTr("Floor")
                 model: [qsTr("All floors")].concat(backend.plans.map(p => p.name))
                 currentIndex: backend.floorFilter ? backend.plans.findIndex(p => p.id === backend.floorFilter) + 1 : 0
@@ -40,6 +42,7 @@ Rectangle {
             Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
+                objectName: "tradeFilter"
                 category: qsTr("Trade")
                 model: [qsTr("All trades")].concat(backend.usedTrades)
                 currentIndex: backend.tradeFilter ? backend.usedTrades.indexOf(backend.tradeFilter) + 1 : 0
@@ -48,6 +51,7 @@ Rectangle {
             Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
+                objectName: "assigneeFilter"
                 category: qsTr("Assignee")
                 model: [qsTr("All assignees")].concat(backend.assignees)
                 currentIndex: backend.assigneeFilter ? backend.assignees.indexOf(backend.assigneeFilter) + 1 : 0

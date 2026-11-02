@@ -94,6 +94,12 @@ struct Window {
     }
     // Lets a panel that just appeared finish its layout before it is clicked.
     void settle() { QTest::qWait(100); }
+    // The smallest window the app allows.
+    void shrink() {
+        window->resize(window->minimumSize());
+        settle();
+    }
+    QRectF sceneRect(QQuickItem *item) const { return item->mapRectToScene(QRectF(0, 0, item->width(), item->height())); }
     void click(const QPoint &point) { QTest::mouseClick(window, Qt::LeftButton, {}, point); }
     void type(const QByteArray &text) {
         for (char c : text)
@@ -104,6 +110,14 @@ struct Window {
 
 // Where a click lands, to within a pixel or so of the plan.
 static bool near(double a, double b) { return qAbs(a - b) < .01; }
+
+// Whether a button or dropdown had to cut its text short to fit.
+static bool cut(QQuickItem *control) {
+    return control->property("contentItem").value<QQuickItem *>()->property("truncated").toBool();
+}
+
+// Every language the app ships, for checks that longer words still fit.
+static const QList<QByteArray> Languages = {"en", "da", "de", "es-MX", "fr", "he"};
 
 class WindowTests : public QObject {
     Q_OBJECT
@@ -204,6 +218,63 @@ private slots:
     {
         Window w;
         QVERIFY(w.center(w.find("planView")).x() < w.center(w.find("itemList")).x());
+    }
+
+    void theSmallestWindowKeepsTheReportInReach()
+    {
+        for (const auto &language : Languages) {
+            Window w(language);
+            w.backend->select(w.first);
+            w.shrink();
+            const QRectF inside(0, 0, w.window->width(), w.window->height());
+            for (const char *name : {"floorMenuButton", "exportButton"}) {
+                auto *button = w.find(name);
+                QVERIFY2(button && button->isVisible(), language + " " + name);
+                QVERIFY2(inside.contains(w.sceneRect(button)), language + " " + name);
+                QVERIFY2(!cut(button), language + " " + name);
+            }
+            for (const char *name : {"zoomOut", "fit", "zoomIn"})
+                QVERIFY2(!cut(w.find(name)), language + " " + name);
+        }
+    }
+
+    void filtersNameWhatTheyFilterInEveryLanguage()
+    {
+        for (const auto &language : Languages) {
+            Window w(language);
+            w.shrink();
+            for (const char *name : {"statusFilter", "floorFilter", "tradeFilter", "assigneeFilter"})
+                QVERIFY2(!cut(w.find(name)), language + " " + name);
+        }
+        Window w;
+        auto *trade = w.find("tradeFilter")->property("contentItem").value<QQuickItem *>();
+        QCOMPARE(trade->property("text").toString(), QString("Trade"));
+        w.backend->setField(w.first, "trade", "Drywall");
+        w.backend->setTradeFilter("Drywall");
+        QTRY_COMPARE(trade->property("text").toString(), QString("Drywall"));
+    }
+
+    void aShortWindowScrollsTheEditorToThePhotos()
+    {
+        Window w;
+        w.backend->select(w.first);
+        w.shrink();
+        auto *scroller = w.find("editorScroller");
+        QVERIFY(scroller->property("interactive").toBool());
+        const qreal bottom = scroller->property("contentHeight").toReal() - scroller->height();
+        scroller->setProperty("contentY", bottom);
+        w.settle();
+        QVERIFY(w.sceneRect(w.find("photoGrid")).top() < w.window->height());
+    }
+
+    void rightToLeftNotesLabelStepsAsideForText()
+    {
+        Window w("he");
+        w.backend->select(w.first);
+        auto *notes = w.find("notesField");
+        QVERIFY(!notes->property("placeholderText").toString().isEmpty());
+        w.backend->setField(w.first, "notes", "סדק");
+        QTRY_VERIFY(notes->property("placeholderText").toString().isEmpty());
     }
 };
 

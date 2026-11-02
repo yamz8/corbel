@@ -190,9 +190,11 @@ Item {
         anchors.margins: 14
         spacing: 6
         Repeater {
-            model: [{ label: "−", factor: 0.8 }, { label: qsTr("Fit"), factor: 0 }, { label: "+", factor: 1.25 }]
+            model: [{ name: "zoomOut", label: "−", factor: 0.8 }, { name: "fit", label: qsTr("Fit"), factor: 0 },
+                    { name: "zoomIn", label: "+", factor: 1.25 }]
             delegate: ActionButton {
                 required property var modelData
+                objectName: modelData.name
                 text: modelData.label
                 // Material pads a button 16 px a side, which leaves a square
                 // one no room for its symbol.
