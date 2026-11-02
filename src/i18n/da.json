@@ -124,5 +124,11 @@
   },
   "Only %1": "Kun %1",
   "No items match.": "Ingen punkter matcher.",
-  "Page %1 of %2": "Side %1 af %2"
+  "Page %1 of %2": "Side %1 af %2",
+  "Importing %1…": "Importerer %1…",
+  "Exporting %1…": "Eksporterer %1…",
+  "Adding %n photos…": {
+    "one": "Tilføjer %n foto…",
+    "other": "Tilføjer %n fotos…"
+  }
 }

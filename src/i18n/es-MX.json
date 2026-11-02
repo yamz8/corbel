@@ -128,5 +128,11 @@
   },
   "Only %1": "Solo %1",
   "No items match.": "Ningún elemento coincide.",
-  "Page %1 of %2": "Página %1 de %2"
+  "Page %1 of %2": "Página %1 de %2",
+  "Importing %1…": "Importando %1…",
+  "Exporting %1…": "Exportando %1…",
+  "Adding %n photos…": {
+    "one": "Agregando %n foto…",
+    "other": "Agregando %n fotos…"
+  }
 }

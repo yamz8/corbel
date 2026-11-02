@@ -4,12 +4,16 @@
 #include "planimport.h"
 #include "report.h"
 
+#include <QBuffer>
 #include <QCollator>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
+#include <QFutureWatcher>
+#include <QImageReader>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QtConcurrent>
 
 namespace {
 // Trades every punch list starts with; anything typed in is added beside them.
@@ -60,7 +64,7 @@ void Backend::setCurrentPlan(int id) {
         return;
     m_currentPlan = id;
     emit currentPlanChanged();
-    refresh();
+    regroup();
 }
 
 QSize Backend::currentPlanSize() const {
@@ -76,7 +80,7 @@ QVariantMap Backend::selected() const {
     for (const auto &item : m_all)
         if (item.id == m_selectedId) {
             QVariantMap map = Store::itemToMap(item);
-            map.insert("planName", m_store.plan(item.planId).name);
+            map.insert("planName", m_planNames.value(item.planId));
             QVariantList photos;
             for (const auto &photo : m_store.photos(item.id))
                 photos << QVariantMap{{"id", photo.id}, {"name", photo.name}};
@@ -121,7 +125,9 @@ void Backend::setFilter(const ItemFilter &filter) {
         return;
     m_filter = filter;
     emit filtersChanged();
-    refresh();
+    regroup();
+    // The report's item count follows the filter.
+    emit itemsChanged();
 }
 
 void Backend::setTradeFilter(const QString &trade) {
@@ -163,15 +169,22 @@ bool Backend::matches(const Item &item, bool ignoreFloor) const {
     return filter.matches(item);
 }
 
+// Reads the project again after a change to it.
 void Backend::refresh() {
     m_all = m_store.isOpen() ? m_store.items() : QList<Item>();
-    m_photoCounts.clear();
-    for (const auto &item : m_all)
-        m_photoCounts.insert(item.id, m_store.photos(item.id).size());
-    QHash<int, QString> names;
-    for (const auto &plan : m_store.plans())
-        names.insert(plan.id, plan.name);
+    m_photoCounts = m_store.isOpen() ? m_store.photoCounts() : QHash<int, int>();
+    m_planNames.clear();
+    if (m_store.isOpen())
+        for (const auto &plan : m_store.plans())
+            m_planNames.insert(plan.id, plan.name);
+    emit itemsChanged();
+    emit plansChanged();
+    regroup();
+}
 
+// Sorts what is already read into the list and the pins, for a change of
+// selection, floor, or filter, which the project itself doesn't see.
+void Backend::regroup() {
     QList<Item> listed, pinned;
     for (const auto &item : m_all) {
         if (matches(item, false))
@@ -179,24 +192,28 @@ void Backend::refresh() {
         if (item.planId == m_currentPlan && matches(item, true))
             pinned << item;
     }
-    m_items.setItems(listed, names, m_photoCounts);
-    m_pins.setItems(pinned, names, m_photoCounts);
-    emit itemsChanged();
-    emit plansChanged();
+    m_items.setItems(listed, m_planNames, m_photoCounts);
+    m_pins.setItems(pinned, m_planNames, m_photoCounts);
     emit selectionChanged();
 }
 
 QImage Backend::planImage(int id) {
-    if (!m_planCache.contains(id))
-        m_planCache.insert(id, m_store.planImage(id));
-    return m_planCache.value(id);
+    if (const QImage *cached = m_planCache.object(id))
+        return *cached;
+    const QImage image = m_store.planImage(id);
+    m_planCache.insert(id, new QImage(image), qMax<qsizetype>(1, image.sizeInBytes() >> 20));
+    return image;
 }
 
+// A thumbnail is decoded straight at its size, which JPEG makes much quicker
+// than decoding the whole photo and shrinking it.
 QImage Backend::photoImage(int id, const QSize &requested) {
-    QImage image = QImage::fromData(m_store.photoData(id));
-    if (!image.isNull() && requested.isValid() && !requested.isEmpty())
-        image = image.scaled(requested, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    return image;
+    QByteArray data = m_store.photoData(id);
+    QBuffer buffer(&data);
+    QImageReader reader(&buffer);
+    if (requested.isValid() && !requested.isEmpty() && reader.size().isValid())
+        reader.setScaledSize(reader.size().scaled(requested, Qt::KeepAspectRatio));
+    return reader.read();
 }
 
 QString Backend::folder() const {
@@ -216,7 +233,7 @@ void Backend::newProject() {
 void Backend::openProject() { m_picker->open("open", tr("Open Project"), {projectFilter()}, false, folder()); }
 
 void Backend::importPlan() {
-    if (!isOpen())
+    if (!isOpen() || !m_busy.isEmpty())
         return;
     m_picker->open("plan", tr("Import Floor Plan"),
                    {{tr("Plans"), {"*.pdf", "*.png", "*.jpg", "*.jpeg", "*.webp"}, {"application/pdf", "image/*"}}},
@@ -254,11 +271,11 @@ void Backend::pickerSelected(const QString &purpose, const QList<QUrl> &urls) {
     else if (purpose == "open")
         openProjectAt(paths.first());
     else if (purpose == "plan")
-        importPlanFrom(paths.first());
+        startImport(paths.first());
     else if (purpose == "photos")
-        addPhotosFrom(paths);
+        startAddPhotos(paths);
     else if (purpose == "export")
-        exportReportTo(paths.first());
+        startExport(paths.first());
 }
 
 bool Backend::createProjectAt(const QString &path) {
@@ -319,10 +336,42 @@ bool Backend::importPlanFrom(const QString &path) {
         setError(error);
         return false;
     }
+    return addPlanPages(pages, path);
+}
+
+// A set of drawings takes a while to render, so the window renders it in the
+// background and adds the floors when it's done, unless the project has been
+// closed or swapped for another in the meantime.
+void Backend::startImport(const QString &path) {
+    if (!isOpen() || !m_busy.isEmpty())
+        return;
+    setBusy(tr("Importing %1…").arg(QFileInfo(path).fileName()));
+    const QString project = projectPath();
+    using Result = QPair<QList<PlanPage>, QString>;
+    auto *watcher = new QFutureWatcher<Result>(this);
+    connect(watcher, &QFutureWatcher<Result>::finished, this, [this, watcher, path, project] {
+        const Result result = watcher->result();
+        watcher->deleteLater();
+        setBusy({});
+        if (projectPath() != project)
+            return;
+        if (result.first.isEmpty())
+            setError(result.second);
+        else
+            addPlanPages(result.first, path);
+    });
+    watcher->setFuture(QtConcurrent::run([path] {
+        QString error;
+        const auto pages = loadPlan(path, &error);
+        return Result(pages, error);
+    }));
+}
+
+bool Backend::addPlanPages(const QList<PlanPage> &pages, const QString &path) {
     int first = 0;
     Change change;
     for (const auto &page : pages) {
-        const int id = m_store.addPlan(page.name, page.image);
+        const int id = m_store.addPlan(page.name, page.png, page.size);
         if (!id) {
             setError(m_store.error());
             break;
@@ -343,18 +392,54 @@ bool Backend::importPlanFrom(const QString &path) {
     return first != 0;
 }
 
+void Backend::setBusy(const QString &message) {
+    m_busy = message;
+    emit busyChanged();
+}
+
+namespace {
+Backend::LoadedPhoto readPhoto(const QString &path) {
+    QString error;
+    const QByteArray jpeg = loadPhoto(path, &error);
+    return {QFileInfo(path).fileName(), jpeg, error};
+}
+}
+
 bool Backend::addPhotosFrom(const QStringList &paths) {
+    QList<LoadedPhoto> photos;
+    for (const auto &path : paths)
+        photos << readPhoto(path);
+    return addLoadedPhotos(m_selectedId, paths, photos);
+}
+
+// Phone photos take a moment each to shrink, so the window shrinks them on
+// every core in the background, then adds them to the item they were picked
+// for, if it's still there.
+void Backend::startAddPhotos(const QStringList &paths) {
     const int id = m_selectedId;
+    if (!id || !m_busy.isEmpty())
+        return;
+    setBusy(tr("Adding %n photos…", nullptr, paths.size()));
+    const QString project = projectPath();
+    auto *watcher = new QFutureWatcher<LoadedPhoto>(this);
+    connect(watcher, &QFutureWatcher<LoadedPhoto>::finished, this, [this, watcher, paths, project, id] {
+        const QList<LoadedPhoto> photos = watcher->future().results();
+        watcher->deleteLater();
+        setBusy({});
+        if (projectPath() == project && m_store.item(id).id)
+            addLoadedPhotos(id, paths, photos);
+    });
+    watcher->setFuture(QtConcurrent::mapped(paths, readPhoto));
+}
+
+bool Backend::addLoadedPhotos(int id, const QStringList &paths, const QList<LoadedPhoto> &photos) {
     if (!id)
         return false;
     const QVariantMap before = m_store.snapshot(id, true);
     QStringList failures;
-    for (const auto &path : paths) {
-        QString error;
-        const QByteArray jpeg = loadPhoto(path, &error);
-        if (jpeg.isEmpty() || !m_store.addPhoto(id, QFileInfo(path).fileName(), jpeg))
-            failures << (error.isEmpty() ? m_store.error() : error);
-    }
+    for (const auto &photo : photos)
+        if (photo.jpeg.isEmpty() || !m_store.addPhoto(id, photo.name, photo.jpeg))
+            failures << (photo.error.isEmpty() ? m_store.error() : photo.error);
     if (!paths.isEmpty())
         rememberFolder(paths.first());
     record(id, before, true);
@@ -364,6 +449,37 @@ bool Backend::addPhotosFrom(const QStringList &paths) {
         setError(failures.join("\n"));
     refresh();
     return failures.isEmpty();
+}
+
+// A report with many photos takes a while to write, so the window writes it
+// in the background, reading the project through a connection of its own.
+void Backend::startExport(const QString &path) {
+    if (!isOpen() || !m_busy.isEmpty())
+        return;
+    QString target = path;
+    if (!target.endsWith(".pdf", Qt::CaseInsensitive))
+        target += ".pdf";
+    setBusy(tr("Exporting %1…").arg(QFileInfo(target).fileName()));
+    auto *watcher = new QFutureWatcher<QString>(this);
+    connect(watcher, &QFutureWatcher<QString>::finished, this, [this, watcher, target] {
+        const QString error = watcher->result();
+        watcher->deleteLater();
+        setBusy({});
+        if (!error.isEmpty()) {
+            setError(error);
+            return;
+        }
+        clearError();
+        m_lastExport = target;
+        setNotice(tr("Report saved to %1").arg(QFileInfo(target).fileName()));
+    });
+    watcher->setFuture(QtConcurrent::run([project = projectPath(), target, filter = m_filter] {
+        Store store;
+        QString error;
+        if (!store.open(project))
+            return store.error();
+        return writeReport(store, target, filter, &error) ? QString() : error;
+    }));
 }
 
 bool Backend::exportReportTo(const QString &path) {
@@ -512,7 +628,7 @@ void Backend::select(int id) {
             m_currentPlan = item.planId;
             emit currentPlanChanged();
         }
-    refresh();
+    regroup();
 }
 
 // Steps through the list as it is filtered, for the arrow keys.

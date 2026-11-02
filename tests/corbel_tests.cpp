@@ -117,7 +117,7 @@ private slots:
         QCOMPARE(pages.size(), 1);
         QCOMPARE(pages.first().name, QString("plan"));
         // Large plans are scaled to a 4000 pixel long side.
-        QCOMPARE(pages.first().image.size(), QSize(4000, 2000));
+        QCOMPARE(pages.first().size, QSize(4000, 2000));
         QCOMPARE(QFileInfo(path).lastModified(), modified);
         QVERIFY(loadPlan(dir.filePath("missing.pdf"), &error).isEmpty());
         QVERIFY(!error.isEmpty());
@@ -140,7 +140,7 @@ private slots:
         const auto pages = loadPlan(path, &error);
         QCOMPARE(pages.size(), 2);
         QVERIFY(pages[1].name.contains("2"));
-        QVERIFY(!pages[0].image.isNull());
+        QVERIFY(!QImage::fromData(pages[0].png).isNull());
     }
 
     void backendAddsEditsAndUndoes()
@@ -199,7 +199,10 @@ private slots:
                           writeImage(dir.filePath("b.png"), QSize(100, 100), Qt::blue)};
         backend.addPhotos();
         QCOMPARE(picker.lastPurpose, QString("photos"));
-        QCOMPARE(backend.selected().value("photos").toList().size(), 2);
+        // Picked photos are shrunk in the background, and the window says so.
+        QVERIFY(!backend.busy().isEmpty());
+        QTRY_COMPARE(backend.selected().value("photos").toList().size(), 2);
+        QVERIFY(backend.busy().isEmpty());
         // Photos are kept no larger than 2000 pixels on their long side.
         const int photoId = backend.selected().value("photos").toList().first().toMap().value("id").toInt();
         QCOMPARE(backend.photoImage(photoId, {}).size(), QSize(2000, 1000));
@@ -208,6 +211,30 @@ private slots:
         backend.undo();
         QCOMPARE(backend.selected().value("photos").toList().size(), 2);
         QCOMPARE(backend.store().item(id).id, id);
+    }
+
+    void pickedPlansAndReportsAreDoneInTheBackground()
+    {
+        QTemporaryDir dir;
+        FakePicker picker;
+        Backend backend(&picker);
+        QVERIFY(backend.openProjectAt(makeProject(dir)));
+        const int floors = backend.plans().size();
+        picker.answers = {writeImage(dir.filePath("roof.png"), QSize(300, 200), Qt::white)};
+        backend.importPlan();
+        QVERIFY(!backend.busy().isEmpty());
+        // A second import waits for the first rather than running alongside.
+        backend.importPlan();
+        QTRY_VERIFY(backend.busy().isEmpty());
+        QCOMPARE(backend.plans().size(), floors + 1);
+
+        picker.answers = {dir.filePath("closeout")};
+        backend.exportReport();
+        QVERIFY(!backend.busy().isEmpty());
+        QTRY_VERIFY(backend.busy().isEmpty());
+        QVERIFY(backend.error().isEmpty());
+        QCOMPARE(backend.lastExport(), dir.filePath("closeout.pdf"));
+        QVERIFY(QFileInfo(dir.filePath("closeout.pdf")).size() > 0);
     }
 
     void filtersKeepTheSelectedItem()

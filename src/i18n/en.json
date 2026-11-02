@@ -14,5 +14,9 @@
   "Its %n items and their photos are deleted with it. Ctrl+Z brings them back.": {
     "one": "Its %n item and its photos are deleted with it. Ctrl+Z brings them back.",
     "other": "Its %n items and their photos are deleted with it. Ctrl+Z brings them back."
+  },
+  "Adding %n photos…": {
+    "one": "Adding %n photo…",
+    "other": "Adding %n photos…"
   }
 }

@@ -319,7 +319,9 @@ int render(QPdfWriter &writer, const Store &store, const QList<Item> &items, con
                 QImage photo = QImage::fromData(store.photoData(photos[row * 3 + column].id));
                 if (photo.isNull())
                     continue;
-                photo = photo.scaled(QSize(900, 900), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                // At the cell's own size the print is as sharp as it gets, and a
+                // report of a few hundred photos stays small enough to email.
+                photo = photo.scaled(QSizeF(photoWidth, photoHeight).toSize(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
                 const QSizeF size = QSizeF(photo.size()).scaled(QSizeF(photoWidth, photoHeight), Qt::KeepAspectRatio);
                 const qreal cellX = column * (photoWidth + gap);
                 const qreal x = rtl ? width - cellX - photoWidth : cellX;

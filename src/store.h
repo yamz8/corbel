@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QDate>
 #include <QDateTime>
+#include <QHash>
 #include <QImage>
 #include <QList>
 #include <QString>
@@ -78,6 +79,7 @@ public:
     QList<Plan> plans() const;
     Plan plan(int id) const;
     int addPlan(const QString &name, const QImage &image);
+    int addPlan(const QString &name, const QByteArray &png, const QSize &size);
     bool renamePlan(int id, const QString &name);
     QImage planImage(int id) const;
 
@@ -91,6 +93,8 @@ public:
     bool removeItem(int id);
 
     QList<Photo> photos(int itemId) const;
+    // Every item's number of photos, in one query.
+    QHash<int, int> photoCounts() const;
     QByteArray photoData(int id) const;
     int addPhoto(int itemId, const QString &name, const QByteArray &jpeg, int id = 0);
     bool removePhoto(int id);

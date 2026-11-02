@@ -124,5 +124,11 @@
   },
   "Only %1": "Nur %1",
   "No items match.": "Keine passenden Punkte.",
-  "Page %1 of %2": "Seite %1 von %2"
+  "Page %1 of %2": "Seite %1 von %2",
+  "Importing %1…": "%1 wird importiert…",
+  "Exporting %1…": "%1 wird exportiert…",
+  "Adding %n photos…": {
+    "one": "%n Foto wird hinzugefügt…",
+    "other": "%n Fotos werden hinzugefügt…"
+  }
 }

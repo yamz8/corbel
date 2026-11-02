@@ -1,4 +1,4 @@
-QT += core gui qml quick quickcontrols2 testlib dbus sql
+QT += core gui qml quick quickcontrols2 testlib dbus sql concurrent
 CONFIG += c++17 testcase
 TARGET = corbel_tests
 TEMPLATE = app

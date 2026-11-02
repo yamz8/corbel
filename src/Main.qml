@@ -165,6 +165,7 @@ ApplicationWindow {
                     }
                     ToolButton {
                         text: qsTr("Import plan")
+                        enabled: backend.busy === ""
                         onClicked: backend.importPlan()
                     }
                     // The counts take the room that is left, and step aside when
@@ -251,6 +252,20 @@ ApplicationWindow {
                 }
                 Timer { id: noticeTimer; interval: 8000; running: backend.notice !== ""; onTriggered: backend.clearNotice() }
             }
+            Rectangle {
+                objectName: "busyBar"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 44
+                visible: backend.busy !== ""
+                color: Qt.alpha(theme.accent, 0.16)
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 16
+                    BusyIndicator { Layout.preferredWidth: 32; Layout.preferredHeight: 32; running: parent.visible }
+                    Label { Layout.fillWidth: true; text: backend.busy; elide: Text.ElideMiddle }
+                }
+            }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -311,6 +326,7 @@ ApplicationWindow {
                         spacing: 12
                         ActionButton {
                             visible: backend.isOpen
+                            enabled: backend.busy === ""
                             highlighted: true
                             text: qsTr("Import plan")
                             onClicked: backend.importPlan()

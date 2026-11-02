@@ -172,12 +172,16 @@ int Store::addPlan(const QString &name, const QImage &image) {
         fail(tr("The plan could not be stored."));
         return 0;
     }
+    return addPlan(name, png, image.size());
+}
+
+int Store::addPlan(const QString &name, const QByteArray &png, const QSize &size) {
     QSqlQuery query(database(m_connection));
     query.prepare("INSERT INTO plans (name, width, height, image, position)"
                   " VALUES (:name, :width, :height, :image, (SELECT IFNULL(MAX(position), 0) + 1 FROM plans))");
     query.bindValue(":name", name);
-    query.bindValue(":width", image.width());
-    query.bindValue(":height", image.height());
+    query.bindValue(":width", size.width());
+    query.bindValue(":height", size.height());
     query.bindValue(":image", png);
     if (!query.exec()) {
         fail(query.lastError().text());
@@ -272,6 +276,15 @@ bool Store::deleteItemRows(int id) {
     query.bindValue(":id", id);
     ok = ok && query.exec();
     return ok || fail(query.lastError().text());
+}
+
+QHash<int, int> Store::photoCounts() const {
+    QHash<int, int> counts;
+    QSqlQuery query(database(m_connection));
+    query.exec("SELECT item_id, COUNT(*) FROM photos GROUP BY item_id");
+    while (query.next())
+        counts.insert(query.value(0).toInt(), query.value(1).toInt());
+    return counts;
 }
 
 QList<Photo> Store::photos(int itemId) const {

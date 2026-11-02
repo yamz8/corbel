@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCache>
 #include <QObject>
 #include <QQuickImageProvider>
 #include <QSize>
@@ -9,6 +10,7 @@
 #include <QVariantMap>
 
 #include "itemmodel.h"
+#include "planimport.h"
 #include "store.h"
 
 class FilePicker;
@@ -46,8 +48,18 @@ class Backend : public QObject {
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
     Q_PROPERTY(QString notice READ notice NOTIFY noticeChanged)
     Q_PROPERTY(QString lastExport READ lastExport NOTIFY noticeChanged)
+    // What is being worked on in the background, such as a PDF's pages being
+    // rendered; empty when nothing is.
+    Q_PROPERTY(QString busy READ busy NOTIFY busyChanged)
 
 public:
+    // A photo read from disk and made ready to store, or why it couldn't be.
+    struct LoadedPhoto {
+        QString name;
+        QByteArray jpeg;
+        QString error;
+    };
+
     explicit Backend(FilePicker *picker, QObject *parent = nullptr);
     ~Backend() override;
 
@@ -83,6 +95,7 @@ public:
     QString error() const { return m_error; }
     QString notice() const { return m_notice; }
     QString lastExport() const { return m_lastExport; }
+    QString busy() const { return m_busy; }
 
     const Store &store() const { return m_store; }
     QImage planImage(int id);
@@ -128,6 +141,7 @@ signals:
     void historyChanged();
     void errorChanged();
     void noticeChanged();
+    void busyChanged();
     void imagesChanged();
     // Asks QML to put keyboard focus on the new item's title.
     void itemAdded(int id);
@@ -144,6 +158,12 @@ private:
     using Change = QList<Step>;
 
     void pickerSelected(const QString &purpose, const QList<QUrl> &urls);
+    void startImport(const QString &path);
+    bool addPlanPages(const QList<PlanPage> &pages, const QString &path);
+    void startAddPhotos(const QStringList &paths);
+    bool addLoadedPhotos(int id, const QStringList &paths, const QList<LoadedPhoto> &photos);
+    void startExport(const QString &path);
+    void setBusy(const QString &message);
     void setError(const QString &message);
     void setNotice(const QString &message);
     void record(int id, const QVariantMap &before, bool withPhotos);
@@ -153,6 +173,7 @@ private:
     void showPlan(int id);
     void apply(const Change &change, bool forward);
     void refresh();
+    void regroup();
     bool matches(const Item &item, bool ignoreFloor) const;
     QString folder() const;
     void rememberFolder(const QString &path);
@@ -165,6 +186,7 @@ private:
     int m_selectedId = 0;
     QList<Item> m_all;
     QHash<int, int> m_photoCounts;
+    QHash<int, QString> m_planNames;
     ItemModel m_items;
     ItemModel m_pins;
     ItemFilter m_filter;
@@ -173,7 +195,10 @@ private:
     QString m_error;
     QString m_notice;
     QString m_lastExport;
-    QHash<int, QImage> m_planCache;
+    QString m_busy;
+    // A plan decodes to tens of megabytes, so only the last few floors seen
+    // are kept, by their size in megabytes.
+    QCache<int, QImage> m_planCache{160};
 };
 
 // Serves plans and photos to QML as image://plan/<generation>/<id> and

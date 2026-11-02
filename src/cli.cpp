@@ -153,7 +153,7 @@ int addPlans(Store &store, const QString &file, QJsonArray *added) {
     if (pages.isEmpty())
         return fail(error);
     for (const auto &page : pages) {
-        const int id = store.addPlan(page.name, page.image);
+        const int id = store.addPlan(page.name, page.png, page.size);
         if (!id)
             return fail(store.error());
         *added << QJsonObject{{"id", id}, {"name", page.name}};

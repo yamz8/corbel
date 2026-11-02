@@ -1,4 +1,4 @@
-QT += core gui qml quick quickcontrols2 dbus sql
+QT += core gui qml quick quickcontrols2 dbus sql concurrent
 
 CONFIG += c++17 release
 TARGET = corbel
