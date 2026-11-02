@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
     app.setApplicationName("corbel");
     app.setOrganizationName("corbel");
-    app.setApplicationVersion("0.1.0");
+    app.setApplicationVersion("0.2.0");
 
     // Matches the window to corbel.desktop, so the compositor (Wayland app_id)
     // and the launcher pick up the installed icon.
