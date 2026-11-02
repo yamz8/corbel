@@ -44,6 +44,11 @@ ApplicationWindow {
         editor.commit()
         backend.select(id)
     }
+    // How bright a color looks, from 0 to 1, to pick the text that reads on it.
+    function luminance(color) {
+        const c = Qt.color(color)
+        return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+    }
     function formatDate(date) {
         translator.language
         return date && !isNaN(date) ? date.toLocaleDateString(Qt.locale(), Locale.ShortFormat) : ""
@@ -131,7 +136,7 @@ ApplicationWindow {
                     Dropdown {
                         id: floorBox
                         visible: win.hasPlan
-                        Layout.preferredWidth: 260
+                        Layout.preferredWidth: 220
                         model: backend.plans
                         textRole: "name"
                         valueRole: "id"
@@ -139,34 +144,55 @@ ApplicationWindow {
                         onActivated: backend.currentPlan = currentValue
                         displayText: currentIndex >= 0 ? backend.plans[currentIndex].name : ""
                     }
+                    // What is done to a floor sits behind one button, so the bar
+                    // keeps the report in reach at any width and in any language.
                     ToolButton {
+                        objectName: "floorMenuButton"
                         visible: win.hasPlan
-                        text: qsTr("Rename")
-                        onClicked: renamePopup.openFor(backend.currentPlan)
-                    }
-                    ToolButton {
-                        visible: win.hasPlan
-                        text: qsTr("Delete floor")
-                        onClicked: deleteFloorPopup.openFor(backend.currentPlan)
+                        text: "⋯"
+                        font.pixelSize: 18
+                        onClicked: floorMenu.popup(this, 0, height)
+                        Menu {
+                            id: floorMenu
+                            objectName: "floorMenu"
+                            MenuItem { text: qsTr("Rename"); onTriggered: renamePopup.openFor(backend.currentPlan) }
+                            MenuItem {
+                                objectName: "deleteFloorItem"
+                                text: qsTr("Delete floor")
+                                onTriggered: deleteFloorPopup.openFor(backend.currentPlan)
+                            }
+                        }
                     }
                     ToolButton {
                         text: qsTr("Import plan")
                         onClicked: backend.importPlan()
                     }
-                    Item { Layout.fillWidth: true }
-                    Repeater {
-                        model: 3
-                        delegate: RowLayout {
-                            required property int index
-                            spacing: 6
-                            Layout.rightMargin: 8
-                            Rectangle {
-                                width: 10; height: 10; radius: 5
-                                color: win.statusColor(index)
-                            }
-                            Label {
-                                text: (backend.statusCounts[index] ?? 0).toLocaleString(Qt.locale(), 'f', 0) + " " + win.statusName(index)
-                                color: win.muted
+                    // The counts take the room that is left, and step aside when
+                    // there isn't enough for all three.
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        RowLayout {
+                            id: counts
+                            objectName: "statusCounts"
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: parent.width >= implicitWidth
+                            spacing: 14
+                            Repeater {
+                                model: 3
+                                delegate: RowLayout {
+                                    required property int index
+                                    spacing: 6
+                                    Rectangle {
+                                        width: 10; height: 10; radius: 5
+                                        color: win.statusColor(index)
+                                    }
+                                    Label {
+                                        text: (backend.statusCounts[index] ?? 0).toLocaleString(Qt.locale(), 'f', 0) + " " + win.statusName(index)
+                                        color: win.muted
+                                    }
+                                }
                             }
                         }
                     }
@@ -176,6 +202,7 @@ ApplicationWindow {
                         onClicked: { editor.commit(); backend.undo() }
                     }
                     ActionButton {
+                        objectName: "exportButton"
                         text: backend.filtered ? qsTr("Export %n items", "", backend.reportCount) : qsTr("Export report")
                         highlighted: true
                         enabled: win.hasPlan
@@ -311,6 +338,7 @@ ApplicationWindow {
 
         Popup {
             id: renamePopup
+            objectName: "renamePopup"
             property int planId: 0
             function openFor(id) {
                 planId = id

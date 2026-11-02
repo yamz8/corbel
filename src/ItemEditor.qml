@@ -41,194 +41,216 @@ Rectangle {
     }
     onItemChanged: load()
 
-    ColumnLayout {
+    // A short window scrolls the details rather than cutting off the photos.
+    Flickable {
+        id: scroller
+        objectName: "editorScroller"
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 12
+        clip: true
+        contentWidth: width
+        contentHeight: Math.max(height, column.implicitHeight + 32)
+        // Only a short window scrolls, so a drag to select text otherwise stays
+        // a selection.
+        interactive: contentHeight > height
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar {}
 
-        RowLayout {
-            Layout.fillWidth: true
-            Label {
-                text: "#" + (editor.item.number ?? "")
-                font.pixelSize: 22
-                font.weight: Font.DemiBold
-            }
-            Label {
-                Layout.fillWidth: true
-                text: editor.item.planName ?? ""
-                color: win.muted
-                elide: Text.ElideRight
-            }
-            ToolButton {
-                text: qsTr("Delete")
-                Material.foreground: theme.open
-                onClicked: backend.removeItem(editor.itemId)
-            }
-            ToolButton {
-                text: "×"
-                font.pixelSize: 18
-                onClicked: win.selectItem(0)
-            }
-        }
+        ColumnLayout {
+            id: column
+            x: 16
+            y: 16
+            width: scroller.width - 32
+            height: scroller.contentHeight - 32
+            spacing: 12
 
-        TextField {
-            id: titleField
-            objectName: "titleField"
-            Layout.fillWidth: true
-            placeholderText: win.label(titleField, qsTr("What needs fixing?"))
-            font.pixelSize: 16
-            onEditingFinished: editor.commit()
-            // Enter is done typing, so the single-key shortcuts work again.
-            onAccepted: planView.forceActiveFocus()
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 6
-            Repeater {
-                model: 3
-                delegate: ActionButton {
-                    required property int index
-                    readonly property bool current: (editor.item.status ?? 0) === index
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    text: win.statusName(index)
-                    leftPadding: 6
-                    rightPadding: 6
-                    checkable: true
-                    checked: current
-                    Material.background: current ? win.statusColor(index) : "#202026"
-                    Material.foreground: current ? (Qt.color(win.statusColor(index)).hslLightness > 0.6 ? "black" : "white") : Material.foreground
-                    onClicked: { editor.commit(); backend.setField(editor.itemId, "status", index) }
-                }
-            }
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: 2
-            columnSpacing: 12
-            rowSpacing: 4
-
-            Label { text: qsTr("Trade"); color: win.muted }
-            EditableDropdown {
-                id: tradeBox
-                Layout.fillWidth: true
-                model: backend.trades
-                onActivated: backend.setField(editor.itemId, "trade", currentText)
-                onAccepted: editor.commit()
-                onActiveFocusChanged: if (!activeFocus) editor.commit()
-            }
-            Label { text: qsTr("Assignee"); color: win.muted }
-            EditableDropdown {
-                id: assigneeBox
-                Layout.fillWidth: true
-                model: backend.assignees
-                onActivated: backend.setField(editor.itemId, "assignee", currentText)
-                onAccepted: editor.commit()
-                onActiveFocusChanged: if (!activeFocus) editor.commit()
-            }
-            Label { text: qsTr("Due"); color: win.muted }
             RowLayout {
                 Layout.fillWidth: true
-                ActionButton {
-                    objectName: "dueButton"
+                Label {
+                    text: "#" + (editor.item.number ?? "")
+                    font.pixelSize: 22
+                    font.weight: Font.DemiBold
+                }
+                Label {
                     Layout.fillWidth: true
-                    flat: true
-                    text: win.formatDate(editor.item.due) || qsTr("No due date")
-                    onClicked: datePopup.openAt(editor.item.due)
+                    text: editor.item.planName ?? ""
+                    color: win.muted
+                    elide: Text.ElideRight
                 }
                 ToolButton {
-                    visible: !isNaN(editor.item.due)
+                    text: qsTr("Delete")
+                    Material.foreground: theme.open
+                    onClicked: backend.removeItem(editor.itemId)
+                }
+                ToolButton {
                     text: "×"
-                    onClicked: backend.setField(editor.itemId, "due", undefined)
+                    font.pixelSize: 18
+                    onClicked: win.selectItem(0)
                 }
             }
-        }
 
-        ScrollView {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 110
-            TextArea {
-                id: notesArea
-                placeholderText: qsTr("Notes")
-                wrapMode: TextEdit.Wrap
-                onActiveFocusChanged: if (!activeFocus) editor.commit()
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Label {
+            TextField {
+                id: titleField
+                objectName: "titleField"
                 Layout.fillWidth: true
-                text: qsTr("Photos")
-                font.weight: Font.Medium
+                placeholderText: win.label(titleField, qsTr("What needs fixing?"))
+                font.pixelSize: 16
+                onEditingFinished: editor.commit()
+                // Enter is done typing, so the single-key shortcuts work again.
+                onAccepted: planView.forceActiveFocus()
             }
-            ActionButton {
-                text: qsTr("Add photos")
-                flat: true
-                onClicked: { editor.commit(); backend.addPhotos() }
-            }
-        }
 
-        GridView {
-            id: photos
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            cellWidth: width / 3
-            cellHeight: cellWidth * 0.78
-            model: editor.item.photos ?? []
-            boundsBehavior: Flickable.StopAtBounds
-            delegate: Item {
-                id: cell
-                required property var modelData
-                required property int index
-                width: photos.cellWidth
-                height: photos.cellHeight
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.margins: 3
-                    radius: Math.min(4, theme.radius)
-                    color: "#0b0b0d"
-                    clip: true
-                    Image {
-                        anchors.fill: parent
-                        fillMode: Image.PreserveAspectCrop
-                        source: "image://photo/" + backend.generation + "/" + cell.modelData.id
-                        sourceSize: Qt.size(320, 320)
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                Repeater {
+                    model: 3
+                    delegate: ActionButton {
+                        required property int index
+                        readonly property bool current: (editor.item.status ?? 0) === index
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        text: win.statusName(index)
+                        leftPadding: 6
+                        rightPadding: 6
+                        checkable: true
+                        checked: current
+                        Material.background: current ? win.statusColor(index) : "#202026"
+                        Material.foreground: current ? (win.luminance(win.statusColor(index)) > 0.5 ? "black" : "white") : Material.foreground
+                        onClicked: { editor.commit(); backend.setField(editor.itemId, "status", index) }
                     }
-                    MouseArea {
-                        id: photoArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: photoViewer.show(cell.index)
+                }
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: 12
+                rowSpacing: 4
+
+                Label { text: qsTr("Trade"); color: win.muted }
+                EditableDropdown {
+                    id: tradeBox
+                    Layout.fillWidth: true
+                    model: backend.trades
+                    onActivated: backend.setField(editor.itemId, "trade", currentText)
+                    onAccepted: editor.commit()
+                    onActiveFocusChanged: if (!activeFocus) editor.commit()
+                }
+                Label { text: qsTr("Assignee"); color: win.muted }
+                EditableDropdown {
+                    id: assigneeBox
+                    Layout.fillWidth: true
+                    model: backend.assignees
+                    onActivated: backend.setField(editor.itemId, "assignee", currentText)
+                    onAccepted: editor.commit()
+                    onActiveFocusChanged: if (!activeFocus) editor.commit()
+                }
+                Label { text: qsTr("Due"); color: win.muted }
+                RowLayout {
+                    Layout.fillWidth: true
+                    ActionButton {
+                        objectName: "dueButton"
+                        Layout.fillWidth: true
+                        flat: true
+                        text: win.formatDate(editor.item.due) || qsTr("No due date")
+                        onClicked: datePopup.openAt(editor.item.due)
                     }
                     ToolButton {
-                        anchors.top: parent.top
-                        anchors.right: parent.right
-                        visible: photoArea.containsMouse || hovered
+                        visible: !isNaN(editor.item.due)
                         text: "×"
-                        onClicked: backend.removePhoto(cell.modelData.id)
+                        onClicked: backend.setField(editor.itemId, "due", undefined)
                     }
                 }
             }
-            Label {
-                anchors.centerIn: parent
-                visible: photos.count === 0
-                color: win.muted
-                text: qsTr("No photos")
+
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 110
+                TextArea {
+                    id: notesArea
+                    placeholderText: win.label(notesArea, qsTr("Notes"))
+                    wrapMode: TextEdit.Wrap
+                    onActiveFocusChanged: if (!activeFocus) editor.commit()
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Photos")
+                    font.weight: Font.Medium
+                }
+                ActionButton {
+                    text: qsTr("Add photos")
+                    flat: true
+                    onClicked: { editor.commit(); backend.addPhotos() }
+                }
+            }
+
+            GridView {
+                id: photos
+                objectName: "photoGrid"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredHeight: cellHeight
+                clip: true
+                cellWidth: width / 3
+                cellHeight: cellWidth * 0.78
+                model: editor.item.photos ?? []
+                boundsBehavior: Flickable.StopAtBounds
+                delegate: Item {
+                    id: cell
+                    required property var modelData
+                    required property int index
+                    width: photos.cellWidth
+                    height: photos.cellHeight
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 3
+                        radius: Math.min(4, theme.radius)
+                        color: "#0b0b0d"
+                        clip: true
+                        Image {
+                            anchors.fill: parent
+                            fillMode: Image.PreserveAspectCrop
+                            source: "image://photo/" + backend.generation + "/" + cell.modelData.id
+                            sourceSize: Qt.size(320, 320)
+                        }
+                        MouseArea {
+                            id: photoArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: photoViewer.show(cell.index)
+                        }
+                        ToolButton {
+                            anchors.top: parent.top
+                            anchors.right: parent.right
+                            visible: photoArea.containsMouse || hovered
+                            text: "×"
+                            onClicked: backend.removePhoto(cell.modelData.id)
+                        }
+                    }
+                }
+                Label {
+                    anchors.centerIn: parent
+                    visible: photos.count === 0
+                    color: win.muted
+                    text: qsTr("No photos")
+                }
             }
         }
     }
 
     DatePopup {
         id: datePopup
+        objectName: "datePopup"
         onPicked: (date) => backend.setField(editor.itemId, "due", date)
     }
 
     Popup {
         id: photoViewer
+        objectName: "photoViewer"
         property int index: 0
         readonly property var list: editor.item.photos ?? []
         function show(i) { index = i; open() }
