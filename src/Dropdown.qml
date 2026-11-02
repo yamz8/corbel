@@ -2,13 +2,22 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
 
-// Material's ComboBox pads its text on the left only, so in a right-to-left
-// language the text runs into the edge; this pads both sides.
+// A ComboBox to pick from. Material shows the choice in a text field, which
+// cuts a long translation off mid-word; a label ends it with an ellipsis, and
+// pads both sides so right-to-left text keeps clear of the edge too.
+// A filter names what it filters while its first choice, "All …", is picked,
+// which stays short in every language.
 ComboBox {
     id: box
-    Binding {
-        target: box.contentItem
-        property: "rightPadding"
-        value: box.Material.textFieldHorizontalPadding
+    property string category
+    readonly property bool showsCategory: category !== "" && currentIndex === 0
+    contentItem: Label {
+        leftPadding: box.Material.textFieldHorizontalPadding
+        rightPadding: box.Material.textFieldHorizontalPadding
+        verticalAlignment: Text.AlignVCenter
+        text: box.showsCategory ? box.category : box.displayText
+        font: box.font
+        elide: Text.ElideRight
+        color: box.enabled && !box.showsCategory ? box.Material.foreground : box.Material.hintTextColor
     }
 }

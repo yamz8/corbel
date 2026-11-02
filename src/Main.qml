@@ -175,7 +175,7 @@ ApplicationWindow {
                         enabled: backend.canUndo
                         onClicked: { editor.commit(); backend.undo() }
                     }
-                    Button {
+                    ActionButton {
                         text: backend.filtered ? qsTr("Export %n items", "", backend.reportCount) : qsTr("Export report")
                         highlighted: true
                         enabled: win.hasPlan
@@ -282,19 +282,19 @@ ApplicationWindow {
                     RowLayout {
                         Layout.alignment: Qt.AlignHCenter
                         spacing: 12
-                        Button {
+                        ActionButton {
                             visible: backend.isOpen
                             highlighted: true
                             text: qsTr("Import plan")
                             onClicked: backend.importPlan()
                         }
-                        Button {
+                        ActionButton {
                             visible: !backend.isOpen
                             highlighted: true
                             text: qsTr("New project")
                             onClicked: backend.newProject()
                         }
-                        Button {
+                        ActionButton {
                             visible: !backend.isOpen
                             text: qsTr("Open project")
                             onClicked: backend.openProject()
@@ -335,8 +335,8 @@ ApplicationWindow {
                 }
                 RowLayout {
                     Layout.alignment: Qt.AlignRight
-                    Button { text: qsTr("Cancel"); flat: true; onClicked: renamePopup.close() }
-                    Button {
+                    ActionButton { text: qsTr("Cancel"); flat: true; onClicked: renamePopup.close() }
+                    ActionButton {
                         text: qsTr("Rename")
                         highlighted: true
                         onClicked: { backend.renamePlan(renamePopup.planId, renameField.text); renamePopup.close() }
@@ -384,8 +384,8 @@ ApplicationWindow {
                 }
                 RowLayout {
                     Layout.alignment: Qt.AlignRight
-                    Button { text: qsTr("Cancel"); flat: true; onClicked: deleteFloorPopup.close() }
-                    Button {
+                    ActionButton { text: qsTr("Cancel"); flat: true; onClicked: deleteFloorPopup.close() }
+                    ActionButton {
                         objectName: "confirmDeleteFloor"
                         text: qsTr("Delete floor")
                         highlighted: true

@@ -5,7 +5,9 @@
         <file alias="ItemList.qml">ItemList.qml</file>
         <file alias="ItemEditor.qml">ItemEditor.qml</file>
         <file alias="DatePopup.qml">DatePopup.qml</file>
+        <file alias="ActionButton.qml">ActionButton.qml</file>
         <file alias="Dropdown.qml">Dropdown.qml</file>
+        <file alias="EditableDropdown.qml">EditableDropdown.qml</file>
         <file alias="HelpOverlay.qml">HelpOverlay.qml</file>
         <file alias="skill.md">skill.md</file>
         <file alias="i18n/en.json">i18n/en.json</file>

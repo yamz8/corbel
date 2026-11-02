@@ -24,6 +24,7 @@ Rectangle {
             Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
+                category: qsTr("Status")
                 model: [qsTr("All statuses"), qsTr("Open"), qsTr("In progress"), qsTr("Done")]
                 currentIndex: backend.statusFilter + 1
                 onActivated: (index) => backend.statusFilter = index - 1
@@ -31,6 +32,7 @@ Rectangle {
             Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
+                category: qsTr("Floor")
                 model: [qsTr("All floors")].concat(backend.plans.map(p => p.name))
                 currentIndex: backend.floorFilter ? backend.plans.findIndex(p => p.id === backend.floorFilter) + 1 : 0
                 onActivated: (index) => backend.floorFilter = index ? backend.plans[index - 1].id : 0
@@ -38,6 +40,7 @@ Rectangle {
             Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
+                category: qsTr("Trade")
                 model: [qsTr("All trades")].concat(backend.usedTrades)
                 currentIndex: backend.tradeFilter ? backend.usedTrades.indexOf(backend.tradeFilter) + 1 : 0
                 onActivated: (index) => backend.tradeFilter = index ? backend.usedTrades[index - 1] : ""
@@ -45,6 +48,7 @@ Rectangle {
             Dropdown {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
+                category: qsTr("Assignee")
                 model: [qsTr("All assignees")].concat(backend.assignees)
                 currentIndex: backend.assigneeFilter ? backend.assignees.indexOf(backend.assigneeFilter) + 1 : 0
                 onActivated: (index) => backend.assigneeFilter = index ? backend.assignees[index - 1] : ""
@@ -60,7 +64,7 @@ Rectangle {
                       ? qsTr("%1 of %2").arg(view.count.toLocaleString(Qt.locale(), 'f', 0)).arg(qsTr("%n items", "", backend.totalCount))
                       : qsTr("%n items", "", backend.totalCount)
             }
-            Button {
+            ActionButton {
                 visible: backend.filtered
                 flat: true
                 text: qsTr("Clear filters")
@@ -116,8 +120,11 @@ Rectangle {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
+                        // Text lines up by its own direction, so an English title in
+                        // a Hebrew window would hug the date; keep both lines by the pin.
                         Label {
                             Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignLeft
                             text: row.model.title || qsTr("Untitled")
                             color: row.model.title ? Material.foreground : win.muted
                             font.italic: !row.model.title
@@ -129,6 +136,7 @@ Rectangle {
                             color: win.muted
                             font.pixelSize: 12
                             elide: Text.ElideRight
+                            horizontalAlignment: Text.AlignLeft
                             text: [row.model.trade, row.model.assignee, row.model.planName].filter(s => s).join(" · ")
                         }
                     }

@@ -191,10 +191,15 @@ Item {
         spacing: 6
         Repeater {
             model: [{ label: "−", factor: 0.8 }, { label: qsTr("Fit"), factor: 0 }, { label: "+", factor: 1.25 }]
-            delegate: Button {
+            delegate: ActionButton {
                 required property var modelData
                 text: modelData.label
+                // Material pads a button 16 px a side, which leaves a square
+                // one no room for its symbol.
                 width: modelData.factor === 0 ? implicitWidth : 44
+                leftPadding: modelData.factor === 0 ? 16 : 0
+                rightPadding: leftPadding
+                font.pixelSize: modelData.factor === 0 ? 14 : 20
                 flat: false
                 Material.background: "#202026"
                 onClicked: modelData.factor === 0 ? view.fit() : view.zoomBy(modelData.factor)

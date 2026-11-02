@@ -73,14 +73,14 @@ Popup {
         }
         RowLayout {
             Layout.fillWidth: true
-            Button {
+            ActionButton {
                 objectName: "dueToday"
                 flat: true
                 text: qsTr("Today")
                 onClicked: { popup.picked(new Date()); popup.close() }
             }
             Item { Layout.fillWidth: true }
-            Button { flat: true; text: qsTr("Cancel"); onClicked: popup.close() }
+            ActionButton { flat: true; text: qsTr("Cancel"); onClicked: popup.close() }
         }
     }
 }

@@ -87,7 +87,7 @@ Rectangle {
             spacing: 6
             Repeater {
                 model: 3
-                delegate: Button {
+                delegate: ActionButton {
                     required property int index
                     readonly property bool current: (editor.item.status ?? 0) === index
                     Layout.fillWidth: true
@@ -111,20 +111,18 @@ Rectangle {
             rowSpacing: 4
 
             Label { text: qsTr("Trade"); color: win.muted }
-            Dropdown {
+            EditableDropdown {
                 id: tradeBox
                 Layout.fillWidth: true
-                editable: true
                 model: backend.trades
                 onActivated: backend.setField(editor.itemId, "trade", currentText)
                 onAccepted: editor.commit()
                 onActiveFocusChanged: if (!activeFocus) editor.commit()
             }
             Label { text: qsTr("Assignee"); color: win.muted }
-            Dropdown {
+            EditableDropdown {
                 id: assigneeBox
                 Layout.fillWidth: true
-                editable: true
                 model: backend.assignees
                 onActivated: backend.setField(editor.itemId, "assignee", currentText)
                 onAccepted: editor.commit()
@@ -133,7 +131,7 @@ Rectangle {
             Label { text: qsTr("Due"); color: win.muted }
             RowLayout {
                 Layout.fillWidth: true
-                Button {
+                ActionButton {
                     objectName: "dueButton"
                     Layout.fillWidth: true
                     flat: true
@@ -166,7 +164,7 @@ Rectangle {
                 text: qsTr("Photos")
                 font.weight: Font.Medium
             }
-            Button {
+            ActionButton {
                 text: qsTr("Add photos")
                 flat: true
                 onClicked: { editor.commit(); backend.addPhotos() }
