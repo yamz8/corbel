@@ -5,7 +5,7 @@ plan, click where something needs fixing, and track each item from open to
 done. When the job is finished, export a closeout report: the item table, every
 plan with its pins, and the photos.
 
-![Corbel with a two-floor office plan, its punch list, and an item open](docs/screenshot.png)
+![Corbel with an office floor plan, its punch list, and an item open with notes and photos](docs/screenshot.png)
 
 - **Pin defects on the plan.** Import a PDF (every page becomes a floor) or an
   image, then click to drop a numbered pin. Drag pins to move them.
@@ -13,15 +13,22 @@ plan with its pins, and the photos.
   status of open, in progress, or done. Pins are colored by status.
 - **Filter the list** by status, trade, assignee, or floor. Selecting an item
   in the list selects it on the plan, and the other way round.
-- **Export the closeout report** as a PDF. With a filter set, the report holds
-  just those items and their floors, ready to send to one trade or one person.
-- **Manage floors.** Rename or delete a floor; deleting one, importing one, and
-  renaming one can all be undone.
+- **Export the closeout report** as a PDF: the item table with each item's
+  notes and overdue dates in red, every plan with its pins, the photos, and
+  numbered pages. With a filter set, the report holds just those items and
+  their floors, ready to send to one trade or one person.
+- **Manage floors.** Rename or delete a floor from the ⋯ menu beside the floor
+  picker; deleting one, importing one, and renaming one can all be undone.
+- **Big projects stay quick.** A set of drawings renders on every core, and
+  imports, photos, and reports are worked on in the background while the
+  window stays usable.
 - **One file per project.** A `.corbel` file is a SQLite database holding the
   plans, items, and photos, so it can be copied or backed up whole. The plans
   and photos you import are never changed.
 
-Corbel follows the Omarchy theme and language as they change.
+Corbel follows the Omarchy theme and language as they change. It speaks
+English, Danish, German, Spanish, French, and Hebrew, which mirrors the window
+right to left.
 
 ## Keyboard
 
