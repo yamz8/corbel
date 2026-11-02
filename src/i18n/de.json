@@ -123,5 +123,6 @@
     "other": "Seine %n Punkte und deren Fotos werden mitgelöscht. Strg+Z holt sie zurück."
   },
   "Only %1": "Nur %1",
-  "No items match.": "Keine passenden Punkte."
+  "No items match.": "Keine passenden Punkte.",
+  "Page %1 of %2": "Seite %1 von %2"
 }

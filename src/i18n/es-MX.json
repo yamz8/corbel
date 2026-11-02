@@ -127,5 +127,6 @@
     "other": "Sus %n elementos y sus fotos se eliminan con él. Ctrl+Z los recupera."
   },
   "Only %1": "Solo %1",
-  "No items match.": "Ningún elemento coincide."
+  "No items match.": "Ningún elemento coincide.",
+  "Page %1 of %2": "Página %1 de %2"
 }

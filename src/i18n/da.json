@@ -123,5 +123,6 @@
     "other": "Etagens %n punkter og deres fotos slettes med den. Ctrl+Z bringer dem tilbage."
   },
   "Only %1": "Kun %1",
-  "No items match.": "Ingen punkter matcher."
+  "No items match.": "Ingen punkter matcher.",
+  "Page %1 of %2": "Side %1 af %2"
 }
